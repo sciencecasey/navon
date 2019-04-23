@@ -47,8 +47,32 @@ time1_time2_LONG=within(time1_time2_LONG, {
 })
 
 str(time1_time2_LONG)
-ggpairs(time1_time2_LONG[,c("Session", "Direction", "Comparison.ACC", "Comparison.RT")])
 
+#exploratory plots
+ggpairs(time1_time2_LONG[,c("Session", "Direction", "Comparison.ACC", "Comparison.RT")], lower=list(combo=wrap("facethist", binwidth=300)), na.rm=TRUE)
+
+tmp<-melt(time1_time2_LONG[c("Session", "Comparison.RT", "Direction")], na.rm = TRUE)
+ggplot(tmp, aes(x=tmp$Direction, y=value)) +
+  geom_jitter(alpha=.1) +
+  geom_violin(alpha=.75)
+
+tmp<-melt(time1_time2_LONG[,c("Comparison.ACC", "Comparison.RT", "Session", "Direction")],
+          id.vars="Comparison.ACC", na.rm = TRUE)
+ggplot(tmp, aes(factor(Comparison.ACC), y=value, fill=factor(Comparison.ACC))) +
+  geom_boxplot() +
+  facet_wrap(~variable, scales="free_y")
+
+#mixed effects logistic regression estimate
+m<-glmer(Comparison.ACC~Direction*Session+(Direction*Session|Subject), data=time1_time2_LONG,
+         family = binomial, control=glmerControl(optimizer = "bobyqa"))
+n<-lmer(Comparison.RT~Direction*Session+(Direction*Session|Subject), data=time1_time2_LONG,
+        control=lmerControl(optimizer="bobyqa"))
+
+#calculate confidenceIntervals
+mci=sqrt(diag(vcov(m)))
+(mtab=cbind(Est=fixef(m), LL=fixef(m)-1.96* mci, UL=fixef(m)+1.96*mci))
+nci=sqrt(diag(vcov(n)))
+(ntab=cbind(Est=fixef(n), LL=fixef(n)-1.96*nci, UL=fixef(n)+1.96*nci))
 
 #nlme or lme for linear mixed model analysis: use nlme fuction
 #with Gerhard did the following-- review later

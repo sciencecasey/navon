@@ -34,7 +34,6 @@ time2_stats_bydirection_bysession=time1_time2_LONG %>%
 time2_stats=bind_rows(time2_stats_bysub_bydirection_bytime, time2_stats_bydirection_bysession) #bysub&direction was a df, bydirection was a tibble
 time2_stats$Subject=replace_na(time2_stats$Subject, "Overall")
 
-
 #LMM for response time session, direction, and RT [long presented stimsummary_stats_comparison=summarise(select_data_stats, "MeanRT"=mean(Comparison.RT), "MeanACC"=mean(Comparison.ACC), "RTT2-T1"=(mean(Comparison.RT&Session==2)-mean(Comparison.RT&Session==1)), "ACCT2-T1"=(mean(Comparison.ACC&Session==2)-mean(Comparison.ACC&Session==1)))
  #only]  this isn't right because it's not a within subjects effect its not knowing that there are 5 people
 #because its a within-subjects we still need to use lme

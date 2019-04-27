@@ -29,8 +29,64 @@ time1_stats_bydirection=time1LONGall %>%
 time1_stats=bind_rows(time1_stats_bysub_bydirection, time1_stats_bydirection) #bysub&direction was a df, bydirection was a tibble
 time1_stats$Subject=replace_na(time1_stats$Subject, "Overall")
 
+#explore averaged  data RT
+names(time1_stats_bysub_bydirection)
+summary(time1_stats_bysub_bydirection)
+str(time1_stats_bysub_bydirection)
+time1_stats_bysub_bydirection$Subject=factor(time1_stats_bysub_bydirection$Subject)
+time1_stats_bysub_bydirection$Direction=factor(time1_stats_bysub_bydirection$Direction)
+str(time1_stats_bysub_bydirection)
+ddply(time1_stats_bysub_bydirection, ~Direction, function(data)summary(data$Comparison.RT_mean))
+hist(time1_stats_bysub_bydirection[time1_stats_bysub_bydirection$Direction=="Up",]$Comparison.RT_mean)
+hist(time1_stats_bysub_bydirection[time1_stats_bysub_bydirection$Direction=="Inv",]$Comparison.RT_mean)
+plot(data=time1_stats_bysub_bydirection, Comparison.RT_mean~Direction, xlab="Direction", ylab="Comparison.RT_mean")
 
-#explore data
+#test normality assumption
+shapiro.test(time1_stats_bysub_bydirection[time1_stats_bysub_bydirection$Direction=="Up",]$Comparison.RT_mean)
+shapiro.test(time1_stats_bysub_bydirection[time1_stats_bysub_bydirection$Direction=="Inv",]$Comparison.RT_mean)
+#p value not sig different than normal
+
+#test homoscedasticity
+library(car)
+leveneTest(Comparison.RT_mean~Direction, data=time1_stats_bysub_bydirection, center=median)
+
+#reshape to a wide order dt
+#library(reshape2)
+#wide.time1_stats_subdir=dcast(time1_stats_bysub_bydirection, Subject~Direction, value.var="Comparison.RT_mean")
+#str(wide.time1_stats_subdir)
+
+#T Test for time 1 RT
+t.test(time1_stats_bysub_bydirection$Comparison.RT_mean, data=time1_stats_bysub_bydirection, subset=time1_stats_bysub_bydirection$Direction)
+#T test time 1 by direction, RT
+t.test(time1_stats_bysub_bydirection$Comparison.RT_mean~time1_stats_bysub_bydirection$Direction, data=time1_stats_bysub_bydirection)
+
+#explore averaged  data ACC
+ddply(time1_stats_bysub_bydirection, ~Direction, function(data)summary(data$Comparison.ACC_mean))
+hist(time1_stats_bysub_bydirection[time1_stats_bysub_bydirection$Direction=="Up",]$Comparison.ACC_mean)
+hist(time1_stats_bysub_bydirection[time1_stats_bysub_bydirection$Direction=="Inv",]$Comparison.ACC_mean)
+plot(data=time1_stats_bysub_bydirection, Comparison.ACC_mean~Direction, xlab="Direction", ylab="Comparison.ACC_mean")
+
+#test normality assumption
+shapiro.test(time1_stats_bysub_bydirection[time1_stats_bysub_bydirection$Direction=="Up",]$Comparison.ACC_mean)
+shapiro.test(time1_stats_bysub_bydirection[time1_stats_bysub_bydirection$Direction=="Inv",]$Comparison.ACC_mean)
+#p value not sig different than normal
+
+#test homoscedasticity
+library(car)
+leveneTest(Comparison.ACC_mean~Direction, data=time1_stats_bysub_bydirection, center=median)
+
+#T Test for Accuracy
+t.test(time1_stats_bysub_bydirection$Comparison.ACC_mean, data=time1_stats_bysub_bydirection, subset=time1_stats_bysub_bydirection$Direction)
+#T test time 1 by direction, RT
+t.test(time1_stats_bysub_bydirection$Comparison.ACC_mean~time1_stats_bysub_bydirection$Direction, data=time1_stats_bysub_bydirection)
+
+#Check the Accuracy (ttest) Effect size Cohen's D
+
+
+
+
+
+#explore ALL  data
 names(time1LONGall)
 summary(time1LONGall)
 time1LONGall$Trial=factor(time1LONGall$Trial)
@@ -68,15 +124,20 @@ library(car)
 leveneTest(log.RT~Direction, data=time1LONGall, center=median)
 #####################################how can I tell if this is valid???
 
-#reshape to a wide order dt
-library(reshape2)
-wide.time1LONGall=dcast(time1LONGall, Subject~Trial*Direction, value.var="Comparison.RT")
-wide.time1log=dcast(time1LONGall, Subject~Trial*Direction, value.var = "log.RT")
-str(wide.time1log)
-str(wide.time1LONGall)
 
-##############################repeated measures T Test for time 1 RT using Logtime or time?
-#I think because multiple comparison need LMM
+
+
+
+
+
+
+
+
+
+
+
+
+#multiple comparison need LMM
 #LMMRegression Model Anova for RT
 #set sum to zero contrasts for Anova call
 contrasts(time1LONGall$Direction)="contr.sum"
@@ -107,15 +168,6 @@ emtrends(time1LONGall, pairwise~Direciton/Trial, var=time1LONGall$Comparison.RT)
 
 
 #GLMMRegression Model Anova for Accuracy
-
-
-
-
-#T Test for Accuracy
-
-#Check the Accuracy (ttest) Effect size with 
-
-#T Test for RT
 
 #Other Tables
 #Group all data by Subject, then Direction (for Teena)

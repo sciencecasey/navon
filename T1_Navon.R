@@ -11,6 +11,7 @@ t2s4N=read_csv("./Navon-5031-2_truncated2.csv")
 t1s5N=read_csv("./Navon-501421-1_truncated2.csv")
 t2s5N=read_csv("./Navon-50142-2_truncated2.csv")
 
+
 #Pull together all the data TIME ONE ONLY
 #after importing subjects, create long df/tibble with all the subjects
 N_time1all=bind_rows(t1s1N, t1s2N, t1s3N, t1s4N, t1s5N)
@@ -39,16 +40,16 @@ Config_Time1=subset(F_N_time1all, select= c(Subject, Configuration, Stimuli.ACC,
 Config_Time1$Subject=as.character(Config_Time1$Subject)
 Config_Time1$Subject=as_factor(Config_Time1$Subject)
 Config_Time1=group_by(Config_Time1, Subject, Configuration)
-Config_Time1_stats_bysubject=summarise(Config_Time1, AvgAcc= mean(Stimuli.ACC, na.rm = TRUE), AvgRT= mean(Stimuli.RT, na.rm = TRUE))
-Config_Time1_simple_stats3=subset(Config_Time1, select= -Subject)  
-Config_Time1_simple_stats2=group_by(Config_Time1_simple_stats3, Configuration) 
-Config_Time1_simple_stats=summarise(Config_Time1_simple_stats2, AvgAcc= mean(Stimuli.ACC, na.rm=TRUE), AvgRT= mean(Stimuli.RT, na.rm=TRUE))
-rm(Config_Time1_simple_stats2, Config_Time1_simple_stats3)
+#make switch/nonswitch condition
+Config_Time1$Switch=ifelse(Config_Time1$Configuration=="GLS" | Config_Time1$Configuration=="LGS", "switch", "nonswitch")
+Config_Time1$Switch=factor(Config_Time1$Switch)
+(Config_Time1_overallstats=summarise(Config_Time1, AvgAcc= mean(Stimuli.ACC, na.rm = TRUE), AvgRT= mean(Stimuli.RT, na.rm = TRUE)))
+(Config_Time1_simple_stats3=subset(Config_Time1, select= -Subject))  
+
 
 #Group for Global/Local stats Configuration Time 1
 TargetLocation_Time1=subset(F_N_time1all, select= c(Subject, TargetLocation, Stimuli.ACC, Stimuli.RT))
-TargetLocation_Time1$Subject=as.character(TargetLocation_Time1$Subject)
-TargetLocation_Time1$Subject=as_factor(TargetLocation_Time1$Subject)
+TargetLocation_Time1$Subject=factor(TargetLocation_Time1$Subject)
 TargetLocation_Time1=group_by(TargetLocation_Time1, Subject, TargetLocation)
 TargetLocation_Time1_stats_bysubject=summarise(TargetLocation_Time1, AvgAcc=mean(Stimuli.ACC, na.rm=TRUE), AvgRT=mean(Stimuli.RT, na.rm=TRUE))
 TargetLocation_Time1_simple_stats3=subset(TargetLocation_Time1, select= -Subject)

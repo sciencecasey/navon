@@ -76,13 +76,13 @@ m$Mauchly #answer was null for sphericity
 m$ANOVA
 #this includes the generalized eta squared effect size
 
-#sphericity corrections
+#sphericity corrections ##I think these don't work bc only 2x2 no 3 level or more, 
 pos=match(m$"Sphericity Correction"$Effect, m$ANOVA$Effect)
 m$Sphericity$GGe.DFn=m$Sphericity$GGe * m$ANOVA$DFn[pos] #numerator DF Greenhouse-Geisser
 m$Sphericity$GGe.DFd=m$Sphericity$GGe * m$ANOVA$DFd[pos] #denominator DF
 m$Sphericity$GGe.DFn=m$Sphericity$GGe * m$ANOVA$DFn[pos] #numerator DF Huynh-Fedlt
 m$Sphericity$GGe.DFd=m$Sphericity$GGe * m$ANOVA$DFd[pos] #demoniator DF
-m$Sphericity
+m$Sphericity #the Dfd and DFn were both 0, which isn't correct
 
 m$ANOVA
 
@@ -101,7 +101,7 @@ time1_time2_LONG=within(time1_time2_LONG, {
 
 str(time1_time2_LONG)
 #exploratory plots
-library(ggplot2)
+library(GGally)
 ggpairs(time1_time2_LONG[,c("Session", "Direction", "Comparison.ACC", "Comparison.RT")], lower=list(combo=wrap("facethist", binwidth=300)), na.rm=TRUE)
 
 tmp<-melt(time1_time2_LONG[c("Session", "Comparison.RT", "Direction")], na.rm = TRUE)
@@ -116,32 +116,116 @@ ggplot(tmp, aes(factor(Comparison.ACC), y=value, fill=factor(Comparison.ACC))) +
   facet_wrap(~variable, scales="free_y")
 
 #mixed effects logistic regression estimate
-m<-glmer(Comparison.ACC~Direction*Session+(Direction*Session|Subject), data=time1_time2_LONG,
-         family = binomial, control=glmerControl(optimizer = "bobyqa"))
 n<-lmer(Comparison.RT~Direction*Session+(Direction*Session|Subject), data=time1_time2_LONG,
         control=lmerControl(optimizer="bobyqa"))
+#####n is the same as what we did with Gerhard!
+##trying, don't know if this the same (below)
+h=ezMixed(time1_time2_LONG, dv=Comparison.RT, random=Subject, fixed=c(Direction, Session), covariates = Trial)
+h
+n
+emmip(n, Direction~Session, CIs=TRUE, ylab="Response Time Prediction")
 
 #calculate confidenceIntervals
-mci=sqrt(diag(vcov(m)))
-(mtab=cbind(Est=fixef(m), LL=fixef(m)-1.96* mci, UL=fixef(m)+1.96*mci))
 nci=sqrt(diag(vcov(n)))
 (ntab=cbind(Est=fixef(n), LL=fixef(n)-1.96*nci, UL=fixef(n)+1.96*nci))
-m
-n
+ntab
+
 #nlme or lme for linear mixed model analysis: use nlme fuction
 #with Gerhard did the following-- review later
-#install.packages("lme4")
-require(lme4)
-RTDirSess=lmer(Comparison.RT~Direction*Session+(Direction*Session|Subject), data=time1_time2_LONG)
-RTSess=lmer(Comparison.RT~Direction*Session+(Session|Subject), data=time1_time2_LONG)
-RT=lmer(Comparison.RT~Direction*Session+(1|Subject), data=time1_time2_LONG)
-summary(RTDirSess)
-summary(RTSess)
-summary(RT)
-fit1=lmer(Comparison.RT~Direction*Session+(1|Subject), data=time1_time2_LONG)
-fit2=lmer(Comparison.RT~Direction+Session+(1|Subject), data=time1_time2_LONG)
-anova(fit1,fit2)
-?anova
+RTComp1=lmer(Comparison.RT~Direction*Session+(Direction*Session|Subject), data=time1_time2_LONG)
+RTComp2=lmer(Comparison.RT~Direction*Session+(Session|Subject), data=time1_time2_LONG)
+RTfit1=lmer(Comparison.RT~Direction*Session+(1|Subject), data=time1_time2_LONG)
+RTfit2=lmer(Comparison.RT~Direction+Session+(1|Subject), data=time1_time2_LONG)
+summary(RTComp1)
+summary(RTComp2)
+summary(RTfit1)
+summary(RTfit2)
+RTSummary=anova(n, RTComp1, RTComp2, RTfit1, RTfit2)
+
+
+#Accuracy Analysis
+str(time2_stats_bysub_bydirection_bytime)
+library(plyr)
+ddply(time2_stats_bysub_bydirection_bytime, ~Direction*Session, function(data) summary(data$Comparison.ACC_mean))
+ddply(time2_stats_bysub_bydirection_bytime, ~Direction*Session, summarise, mean.ACC=mean(Comparison.ACC_mean), sd.ACC=sd(Comparison.ACC_mean))
+hist(time2_stats_bysub_bydirection_bytime[time2_stats_bysub_bydirection_bytime$Direction=="Up" & 
+                                            time2_stats_bysub_bydirection_bytime$Session=="1",]$Comparison.ACC_mean, xlab="Session 1, Up %ACC")
+hist(time2_stats_bysub_bydirection_bytime[time2_stats_bysub_bydirection_bytime$Direction=="Up" & 
+                                            time2_stats_bysub_bydirection_bytime$Session=="2",]$Comparison.ACC_mean, xlab="Session 2, Inv %ACC")
+hist(time2_stats_bysub_bydirection_bytime[time2_stats_bysub_bydirection_bytime$Direction=="Inv" & 
+                                            time2_stats_bysub_bydirection_bytime$Session=="1",]$Comparison.ACC_mean, xlab="Session 1, Up %ACC")
+hist(time2_stats_bysub_bydirection_bytime[time2_stats_bysub_bydirection_bytime$Direction=="Inv" & 
+                                            time2_stats_bysub_bydirection_bytime$Session=="2",]$Comparison.ACC_mean, xlab="Session 2, Inv %ACC")
+boxplot(Comparison.ACC_mean~Direction*Session, data=time2_stats_bysub_bydirection_bytime, 
+        xlab="Direction+Session", ylab="%ACC")
+with(time2_stats_bysub_bydirection_bytime, interaction.plot(Direction, Session, Comparison.ACC_mean))
+
+#2x2 Repeated Measures Factorial Anova
+#test normality
+shapiro.test(time2_stats_bysub_bydirection_bytime[time2_stats_bysub_bydirection_bytime$Direction=="Up",]$Comparison.ACC_mean)
+shapiro.test(time2_stats_bysub_bydirection_bytime[time2_stats_bysub_bydirection_bytime$Direction=="Inv",]$Comparison.ACC_mean)
+shapiro.test(time2_stats_bysub_bydirection_bytime[time2_stats_bysub_bydirection_bytime$Session=="1",]$Comparison.ACC_mean)
+shapiro.test(time2_stats_bysub_bydirection_bytime[time2_stats_bysub_bydirection_bytime$Session=="2",]$Comparison.ACC_mean)
+#pvalue insig for all 
+
+#test residual normality
+m = aov(Comparison.ACC_mean~Direction*Session+Error(Subject/(Direction*Session)), data=time2_stats_bysub_bydirection_bytime)
+shapiro.test(residuals(m$Subject))
+qqnorm(residuals(m$Subject));qqline(residuals(m$Subject))
+shapiro.test(residuals(m$"Subject:Direction"))
+qqnorm(residuals(m$"Subject:Direction"));qqline(residuals(m$"Subject:Direction"))
+shapiro.test(residuals(m$"Subject:Session"))
+qqnorm(residuals(m$"Subject:Session"));qqline(residuals(m$"Subject:Session"))
+#residuals are all norm
+
+library(ez)
+m=ezANOVA(dv=Comparison.ACC_mean, within=c(Direction, Session), wid=Subject, data=time2_stats_bysub_bydirection_bytime, detailed=TRUE)
+m$Mauchly #answer was null for sphericity
+m$ANOVA
+
+#post hoc t test on sig main effect of Direction
+(ttestDirection=t.test(time2_stats_bysub_bydirection_bytime$Comparison.ACC_mean~time2_stats_bysub_bydirection_bytime$Direction, data=time2_stats_bysub_bydirection_bytime))
+
+#LMM ACC
+#as factors
+time1_time2_LONG=within(time1_time2_LONG, {
+  Subject=factor(Subject)
+  Session=factor(Session)
+  Direction=factor(Direction)
+  Trial=factor(Trial)
+})
+
+acc=ezMixed(time1_time2_LONG, dv=Comparison.ACC, random=Subject, fixed=c(Direction, Session), covariates = Trial)
+acc
+
+##trying, don't know if this the same (below)
+g=ezMixed(time1_time2_LONG, dv=Comparison.ACC, random=Subject, fixed=c(Direction, Session), covariates = Trial)
+g
+
+#nlme or lme for linear mixed model analysis: use nlme fuction
+#mixed effects logistic regression estimate
+r<-lmer(Comparison.ACC~Direction*Session+(Direction*Session|Subject), data=time1_time2_LONG,
+        control=lmerControl(optimizer="bobyqa"))
+ACCComp1=lmer(Comparison.ACC~Direction*Session+(Direction*Session|Subject), data=time1_time2_LONG)
+ACCComp2=lmer(Comparison.ACC~Direction*Session+(Session|Subject), data=time1_time2_LONG)
+ACCfit1=lmer(Comparison.ACC~Direction*Session+(1|Subject), data=time1_time2_LONG)
+ACCfit2=lmer(Comparison.ACC~Direction+Session+(1|Subject), data=time1_time2_LONG)
+summary(ACCComp1)
+summary(ACCComp2)
+summary(ACCfit1)
+summary(ACCfit2)
+(ACCSummary=anova(r, ACCComp1, ACCComp2, ACCfit1, ACCfit2))
+
+#calculate confidenceIntervals
+rci=sqrt(diag(vcov(r))) #take sqrt of the diagonal [[1,1], [2,2], [3,3], [4,4]] or variance covalence matrix of r
+(rtab=cbind(Est=fixef(r), LL=fixef(r)-1.96*rci, UL=fixef(r)+1.96*rci)) #cal. ll and ul from RCI
+
+#plot
+emmip(r, Direction~Session, CIs=TRUE, ylab="ACC Prediction")
+emmip(ACCComp1, Direction~Session, CIs=TRUE, ylab="ACC Prediction")
+emmip(ACCComp2, Direction~Session, CIs=TRUE, ylab="ACC Prediction")
+emmip(ACCfit1, Direction~Session, CIs=TRUE, ylab="ACC Prediction")
+emmip(ACCfit2, Direction~Session, CIs=TRUE, ylab="ACC Prediction")
 
 #Export all the data above so I can send it to colleagues
 write_csv(time2_stats, "./time2_allstats.csv")

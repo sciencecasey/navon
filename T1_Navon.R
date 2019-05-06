@@ -26,8 +26,6 @@ N_time1all[,names]=lapply(N_time1all[,names], factor)
 str(N_time1all)
 F_N_time1all=N_time1all
 
-#remove practice task
-F_N_time1all=F_N_time1all[-(1:10),]
 #Removeirrelevant variables 
 F_N_time1all=subset(F_N_time1all, select= -c(XCoo, YCoo, Block, Session))
 #Check for nonresponse in RT and recode as NA
@@ -35,6 +33,7 @@ F_N_time1all$Stimuli.RT==0
 F_N_time1all=mutate(F_N_time1all, Stimuli.RT=ifelse(Stimuli.RT==0, NA, Stimuli.RT))
 #recode the nonresponse ACC values as NA
 is.na(F_N_time1all$Stimuli.ACC)=is.na(F_N_time1all$Stimuli.RT)
+
 #Group for Configuration stats Time 1
 Config_Time1=subset(F_N_time1all, select= c(Subject, Configuration, Stimuli.ACC, Stimuli.RT))
 Config_Time1$Subject=as.character(Config_Time1$Subject)

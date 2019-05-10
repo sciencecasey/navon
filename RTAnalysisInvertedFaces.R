@@ -73,13 +73,29 @@ InvRT
 ##can't get ggplot to work modified many times
 
 #Upright Spaghetti Plot
-xyplot(logRT_mean~Session, groups=Subject, subset=Direction=="Up", Inv_stats_bysub_bydirection_bytime, type=c('p','l'),
-       par.settings=ggplot2like(),axis=axis.grid, ylab="Upright Response Time")
+re=xyplot(logRT_mean~Session, groups=Subject, subset=Direction=="Up", Inv_stats_bysub_bydirection_bytime, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, ylab="Upright Response Time", auto.key = TRUE)
 #Inverted Spaghetti Plot
-xyplot(logRT_mean~Session, groups=Subject, subset=Direction=="Inv", Inv_stats_bysub_bydirection_bytime, type=c('p','l'),
-       par.settings=ggplot2like(),axis=axis.grid, ylab="Inverted Response Time")
-#Spaghetti plot line for each subject and Direction
-xyplot(logRT_mean~Session, groups=c(Subject, Direction), Inv_stats_bysub_bydirection_bytime, type=c('p','l'), par.settings=ggplot2like(),axis=axis.grid, ylab="Response Time")
+ra=xyplot(logRT_mean~Session, groups=Subject, subset=Direction=="Inv", Inv_stats_bysub_bydirection_bytime, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, ylab="Inverted Response Time", auto.key = TRUE, pch=24)
+re
+ra
+xyplot(ra+re, yaxp=c(6.4,7.4, 10))
+#Spaghetti plot line for each subject and Direction in panels
+xyplot(logRT_mean~Session|Direction, groups=Subject, Inv_stats_bysub_bydirection_bytime, type=c('p','l'), par.settings=ggplot2like(),axis=axis.grid, ylab="Response Time", auto.key = list(space="right"), layout=c(2,1), main="Response Time by Subject")
+#try Spaghetti plot line each sub in same panel
+try.pch=c(22, 16)
+try.fill=c("orange", "skyblue", "lightgreen", "purple", "red")
+(tryplot=with(Inv_stats_bysub_bydirection_bytime,
+             xyplot(logRT_mean~Session,
+                    panel=function(x,y,...,subscripts) {
+                      pch=try.pch[Direction[subscripts]]
+                      fill=try.fill[Subject[subscripts]]
+                      panel.xyplot(x,y,pch=pch, fill=fill, col=fill, type ='p', cex=1.25)
+                    },
+                    key=list(space="right", text=list(levels(Direction)), points=list(pch=try.pch, col="black", cex=1.5), 
+                             text=list(levels(Subject)), points=list(pch=16, col=try.fill),
+                             rep=FALSE), axis=axis.grid, ylab="Response Time", main="Response Time by Subject")))
 #plot Subject 1
 xyplot(logRT_mean~Session, groups=Direction, subset=Subject=="1", Inv_stats_bysub_bydirection_bytime, type=c('p','l'), par.settings=ggplot2like(),axis=axis.grid, ylab="Mean RT Subject 1")
 #plot Sub 2

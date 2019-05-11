@@ -46,7 +46,6 @@ keylist=list(space="top", col=c("blue", "green", "red", "purple"), columns=1, te
 bysubject=factor(Inv_stats_bysub_bydirection_bytime$Subject, levels = c(1,2,3,4,5), labels = c("1", "2", "3", "4", "5"))
 xyplot(Comparison.ACC_mean~Session|bysubject, groups=Direction, data=Inv_stats_bysub_bydirection_bytime, h=Inv_stats_bysub_bydirection_bytime$Comparison.ACC_mean, layout=c(5,1), aspect=1.5, main="Subject Response Times Inv v Up", xlab="RT (ms)", ylab="Session", panel=mypanel, auto.key=keylist)
 
-
 #Repeated Measures Anova on Means ACC
 InvACC=ezANOVA(dv=Comparison.ACC_mean, within=c(Direction, Session), wid=Subject, data=Inv_stats_bysub_bydirection_bytime, detailed=TRUE)
 (InvACCAnova=InvACC$ANOVA) #Direction and Session sig, not sig interaction
@@ -76,6 +75,3 @@ xyplot(Comparison.ACC~Trial, groups=Direction, subset=Subject=="50202", data=T2P
 xyplot(Comparison.ACC~Trial, groups=Direction, subset=Subject=="50262", data=T2Plots, type='l', main="Subject2, Session 2 ACC", auto.key = list(space="top"))
 xyplot(Comparison.ACC~Trial, groups=Direction, subset=Subject=="50312", data=T2Plots, type='l', main="Subject2, Session 2 ACC", auto.key = list(space="top"))
 xyplot(Comparison.ACC~Trial, groups=Subject, data=T1Plots, type="a", main="Session 2 Accuracy by Subject", auto.key = list(space='top'))
-
-
-

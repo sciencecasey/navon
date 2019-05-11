@@ -1,6 +1,6 @@
 #Pull together all the data TIME ONE ONLY
 #after importing subjects, create long df/tibble with all the subjects
-Invtime1all=bind_rows(t1s1, t1s2, t1s3, t1s4, t1s5)
+Invtime1all=rbind(t1s1, t1s2, t1s3, t1s4, t1s5)
 Invtime1all
 #add time 2
 Invtime1_time2_all=rbind(Invtime1all, t2s1, t2s2, t2s3, t2s4, t2s5)
@@ -80,7 +80,7 @@ ra=xyplot(logRT_mean~Session, groups=Subject, subset=Direction=="Inv", Inv_stats
        par.settings=ggplot2like(),axis=axis.grid, ylab="Inverted Response Time", auto.key = TRUE, pch=24)
 re
 ra
-xyplot(ra+re, yaxp=c(6.4,7.4, 10))
+plot(ra+re, yaxp=c(6.4,7.4, 10))
 #Spaghetti plot line for each subject and Direction in panels
 xyplot(logRT_mean~Session|Direction, groups=Subject, Inv_stats_bysub_bydirection_bytime, type=c('p','l'), par.settings=ggplot2like(),axis=axis.grid, ylab="Response Time", auto.key = list(space="right"), layout=c(2,1), main="Response Time by Subject")
 #try Spaghetti plot line each sub in same panel

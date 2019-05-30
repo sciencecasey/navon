@@ -1,6 +1,8 @@
 #Markdown Graphs:
 #Inverted Faces RT for all answered questions (accurate and inaccurate)
-#Upright Spaghetti Plot
+https://yihui.name/knitr/demo/stitch/
+  https://yihui.name/knitr/demo/externalization/
+s=system.file('R_markdown_graph_output.R','R_markdown_graph_output.R')
 require("ggplot2")
 require(GGally)
 require(reshape2)
@@ -22,6 +24,7 @@ library(lmerTest)
 library(latticeExtra)  
 library(ez)
 library(markdown)
+#Upright Spaghetti Plot
 re=xyplot(logRT_mean~Session, groups=Subject, subset=Direction=="Up", Inv_stats_bysub_bydirection_bytime, type=c('p','l'),
           par.settings=ggplot2like(),axis=axis.grid, ylab="Upright Response Time", auto.key = TRUE)
 #Inverted Spaghetti Plot

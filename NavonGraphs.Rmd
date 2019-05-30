@@ -1,0 +1,719 @@
+---
+title: "Navon Graphs"
+author: "Casey Jayne"
+date: "5/24/2019"
+output: html_document
+---
+
+Purpose::
+Note that for each graph requested and presented, this is simply where I stopped messing with them.  Most have them have one or more things about them that can be improved, so if you like the output of one but not aspects of styling it will be most time-efficient to focus on improving those (rather than try to perfect every one before showing where I'm at)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require("ggplot2")
+require(GGally)
+require(reshape2)
+require(lme4)
+#require(compiler)
+#require(parallel)
+#require(boot)
+require(lattice)
+require(dplyr)
+require(tidyverse)
+require("haven")
+require(lsr)
+require(plyr)
+require(car)
+require(fitdistrplus)
+require(multcomp)
+require(emmeans)
+library(lmerTest)
+library(latticeExtra)  
+library(ez)
+library(markdown)
+t1s1N=read_csv("./Navon-50262-1_truncated2.csv")
+t2s1N=read_csv("./Navon-50262-2_truncated2.csv")
+t1s2N=read_csv("./Navon-50202-1_truncated2.csv")
+t2s2N=read_csv("./Navon-50202-2_truncated2.csv")
+t1s3N=read_csv("./Navon-50192-1_truncated2.csv")
+t2s3N=read_csv("./Navon-50192-2_truncated2.csv")
+t1s4N=read_csv("./Navon-50312-1_truncated2.csv")
+t2s4N=read_csv("./Navon-5031-2_truncated2.csv")
+t1s5N=read_csv("./Navon-501421-1_truncated2.csv")
+t2s5N=read_csv("./Navon-50142-2_truncated2.csv")
+#Create DF
+N_time1all=bind_rows(t1s1N, t1s2N, t1s3N, t1s4N, t1s5N)
+N_time1all$Session=replace_na(N_time1all$Session, 1)
+N_time1all$Session
+N_T2T1_all=bind_rows(N_time1all, t2s1N, t2s2N, t2s3N, t2s4N, t2s5N)
+str(N_T2T1_all)
+#remove practice block
+N_T2T1_all=N_T2T1_all[!N_T2T1_all$Block=="P",]
+N_T2T1_all$Block=factor(N_T2T1_all$Block)
+levels(N_T2T1_all$Block) #check that it worked
+#rename some incorrect subject names
+N_T2T1_all$Subject[N_T2T1_all$Subject=="5031"]="50312"
+N_T2T1_all$Subject[N_T2T1_all$Subject=="5020"]="50202"
+N_T2T1_all$Subject[N_T2T1_all$Subject=="501421"]="50142"
+N_T2T1_all$Subject
+#Variables as Factors for grouping
+F_N_T2T1_all=N_T2T1_all
+F_N_T2T1_all$Session=factor(F_N_T2T1_all$Session)
+F_N_T2T1_all$Subject=factor(F_N_T2T1_all$Subject)
+F_N_T2T1_all$Configuration=factor(F_N_T2T1_all$Configuration)
+F_N_T2T1_all$TargetLetter=factor(F_N_T2T1_all$TargetLetter)
+F_N_T2T1_all$TargetLocation=factor(F_N_T2T1_all$TargetLocation)
+str(F_N_T2T1_all)
+#Remove irrelevant variables 
+F_N_T2T1_all=subset(F_N_T2T1_all, select= -c(XCoo, YCoo, Block))
+#Recode nonresponse as NA for RT and ACC
+is.na(F_N_T2T1_all$Stimuli.RT)=F_N_T2T1_all$Stimuli.RT==0
+is.na(F_N_T2T1_all$Stimuli.RT) #just as a check
+is.na(F_N_T2T1_all$Stimuli.ACC)=is.na(F_N_T2T1_all$Stimuli.RT)
+sum(is.na(F_N_T2T1_all$Stimuli.ACC))
+sum(is.na(F_N_T2T1_all$Stimuli.RT))
+#make a column for logTime
+F_N_T2T1_all$logRT=log(F_N_T2T1_all$Stimuli.RT)
+#make switch/nonswitch condition
+F_N_T2T1_all$Switch=ifelse(F_N_T2T1_all$Configuration=="GLS" | 
+                             F_N_T2T1_all$Configuration=="LGS", "switch", "nonswitch")
+F_N_T2T1_all$Switch=factor(F_N_T2T1_all$Switch)
+str(F_N_T2T1_all)
+```
+
+## Response Time for All responses (Inacc and Acc), Switch/Nonswitch
+```{r, include=FALSE}
+#All RT for answered questions (inacc and inac)
+#check that is what we're looking at
+sum(F_N_T2T1_all$Stimuli.ACC==0, na.rm = TRUE) #25
+sum(F_N_T2T1_all$Stimuli.ACC==1, na.rm=TRUE) #1227
+sum(is.na(F_N_T2T1_all$Stimuli.ACC)) #28
+sum(is.na(F_N_T2T1_all$logRT)) #28
+
+N_switch=subset(F_N_T2T1_all, 
+                select=c(Stimuli.ACC, logRT, Subject, Session, Switch, TargetLocation))
+
+#Switch grouped stats by sub and direction
+N_switch_stats_bysub=N_switch %>%
+  group_by(Subject, Switch) %>%
+  summarise_at(c("Stimuli.ACC", "logRT"), funs(mean, sd), na.rm=TRUE)
+
+#Inv grouped stats by sub and direction and time
+N_switch_stats_bysub_bysession=N_switch %>%
+  group_by(Subject, Switch, Session) %>%
+  summarise_at(c("Stimuli.ACC", "logRT"), funs(mean, sd), na.rm=TRUE)
+
+#overall time by direction by session
+N_switch_stats_bysession=N_switch %>%
+  group_by(Switch, Session) %>%
+  summarise_at(c("Stimuli.ACC", "logRT"), funs(mean, sd), na.rm=TRUE)
+
+#put overall and by subj into a df
+N_switch_stats=bind_rows(N_switch_stats_bysub_bysession, N_switch_stats_bysession)
+#bysub&direction was a df, bydirection was a tibble
+(N_switch_stats$Subject=ifelse(is.na(N_switch_stats$Subject), "Overall", N_switch_stats$Subject))
+
+```
+
+```{r, include=TRUE}
+#Switch Trials Spaghetti Plot
+xyplot(logRT_mean~Session, groups=Subject, subset=Switch=="switch", 
+       N_switch_stats_bysub_bysession, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, 
+       main="Switch Response Time", auto.key = TRUE)
+#Non-Switch Spaghetti Plot
+xyplot(logRT_mean~Session, groups=Subject, subset=Switch=="nonswitch", 
+       N_switch_stats_bysub_bysession, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, 
+       main="Non-switch Response Time", auto.key = TRUE)
+#By session
+xyplot(logRT_mean~Switch|Session, groups=Subject, 
+       N_switch_stats_bysub_bysession, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, 
+       main="Response Time by Session", auto.key = TRUE)
+#Spaghetti plot line for each subject and Direction
+xyplot(logRT_mean~Session, groups=c(Subject, Switch), N_switch_stats_bysub_bysession, 
+       type=c('p','l'), par.settings=ggplot2like(),axis=axis.grid, 
+       ylab="Response Time", auto.key = TRUE) 
+#the lines intersect creating a third line that is meaningless
+
+#plot Subject 1
+xyplot(logRT_mean~Session, groups=Switch, subset=Subject=="50142", 
+       N_switch_stats_bysub_bysession, type=c('p','l'), 
+       par.settings=ggplot2like(),axis=axis.grid, 
+       main="Mean RT Subject 1", auto.key = TRUE)
+#plot Sub 2
+xyplot(logRT_mean~Session, groups=Switch, subset=Subject=="50192", 
+       N_switch_stats_bysub_bysession, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, 
+       main="Mean RT Subject 2", auto.key = TRUE)
+#plot Sub 3
+xyplot(logRT_mean~Session, groups=Switch, subset=Subject=="50202", 
+       N_switch_stats_bysub_bysession, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, 
+       main="Mean RT Subject 3", auto.key = TRUE)
+#Plot Sub 4
+xyplot(logRT_mean~Session, groups=Switch, subset=Subject=="50262", 
+       N_switch_stats_bysub_bysession, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, 
+       main="Mean RT Subject 4", auto.key = TRUE)
+#Plot Sub 5
+xyplot(logRT_mean~Session, groups=Switch, subset=Subject=="50312", 
+       N_switch_stats_bysub_bysession, type=c('p', 'l'), 
+       par.settings=ggplot2like(),axis=axis.grid, 
+       main="Mean RT Subject 5", auto.key = TRUE)
+#Plot Overall Spaghetti
+xyplot(logRT_mean~Session, groups=Switch, subset=Subject=="Overall", 
+       N_switch_stats, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, 
+       main="Overall RT", auto.key = TRUE) 
+```
+
+
+```{r}
+mypanel=function(x,y,h){
+  panel.xyplot(x, y, lty=1, type=c('p', 'l'))
+  panel.lmline(x, y, lty=3, lwd=1, col="purple")
+  panel.grid(h=-1, v=-1)
+  panel.abline(mean(h), lty=2, col="red")
+  llines(x, y, col=c("blue", "green"))
+}
+colors=c("blue", "green")
+keylist=list(space="top", col=c("blue", "green", "red", "purple"), 
+             columns=1, text=c("Inv", "Up", "Mean", "Regression"))
+bysubjectN=factor(N_switch_stats$Subject, levels = c(1,2,3,4,5), 
+                  labels = c("1", "2", "3", "4", "5"))
+xyplot(logRT_mean~Session|bysubjectN, groups=Switch, data=N_switch_stats, 
+       h=N_switch_stats$logRT_mean, layout=c(5,1), aspect=1.5, 
+       main="Subject Response Times Switch v NonSwitch", xlab="RT (ms)", 
+       ylab="Session", panel=mypanel, auto.key=keylist)
+
+```
+
+
+```{r, include=FALSE}
+#Repeated Measures Anova on Means log RT
+N_switch_RT=ezANOVA(dv=logRT_mean, within=c(Switch, Session), 
+                    wid=Subject, data=N_switch_stats_bysub_bysession, detailed=TRUE)
+(N_switch_RTAnova=N_switch_RT$ANOVA) #switch and Session Sig. (and intercept)
+#sig effect of Direction and Intercept
+
+#GLMM RT 
+#add Trial factor
+str(F_N_T2T1_all)
+length(F_N_T2T1_all$Stimuli.ACC)
+F_N_T2T1_all$Trial=factor(rep(seq(1, 128), 10))
+str(F_N_T2T1_all)
+
+Nswitch_RTComp1=lmer(logRT~1+Switch+Session+Switch:Session+(1+Session|Subject), data=F_N_T2T1_all)
+summary(Nswitch_RTComp1) 
+#main effect of Switch, Session, and Intercept (not interaction)
+anova(Nswitch_RTComp1) #switch and session, not interaction
+```
+
+
+#### Responses Over Time
+```{r, include=FALSE}
+#plot each person's RT Over time as a check for lag/fatigue
+#GLMM RT 
+#add Trial factor
+str(F_N_T2T1_all)
+length(F_N_T2T1_all$Stimuli.ACC)
+F_N_T2T1_all$Trial=factor(rep(seq(1, 128), 10))
+str(F_N_T2T1_all)
+NT1Plots=F_N_T2T1_all %>%
+  subset(Session=="1")
+NT2Plots=F_N_T2T1_all %>%
+  subset(Session=="2")
+str(NT1Plots)
+str(NT2Plots)
+sum(NT1Plots$Session==1)
+sum(NT1Plots$Session==2)
+sum(NT2Plots$Session==1)
+sum(NT2Plots$Session==2) #just double checking
+#count non-responses
+sum(is.na(NT2Plots$logRT)) #13
+sum(is.na(NT1Plots$logRT)) #15
+
+```
+
+```{r, include=TRUE}
+
+#Time 1
+#ggplot(data=F_N_T2T1_all, subset=c(Subject=="50142" & Session=="1", aes(logRT~Trial) +geom_line()))
+levels(NT1Plots$Subject)
+xyplot(logRT~Trial, groups=Switch, subset=Subject=="50142", data=NT1Plots, 
+       type='l', ylim = (5.5:8.5), main="Subject1, Session 1 RT", 
+       auto.key = list(space="top"), xlim=(1:130), x.scales=10)
+xyplot(logRT~Trial, groups=Switch, subset=Subject=="50192", data=NT1Plots, 
+       type='l', ylim = (5.5:8.5), main="Subject2, Session 1 RT", 
+       auto.key = list(space="top"), xlim=(1:130), x.scales=10)
+xyplot(logRT~Trial, groups=Switch, subset=Subject=="50202", data=NT1Plots, 
+       type='l', ylim = (5.5:8.5), main="Subject2, Session 1 RT", 
+       auto.key = list(space="top"), xlim=(1:130), x.scales=10)
+xyplot(logRT~Trial, groups=Switch, subset=Subject=="50262", data=NT1Plots, 
+       type='l', ylim = (5.5:8.5), main="Subject2, Session 1 RT", 
+       auto.key = list(space="top"), xlim=(1:130), x.scales=10)
+xyplot(logRT~Trial, groups=Switch, subset=Subject=="50312", data=NT1Plots, 
+       type='l', ylim = (5.5:8.5), main="Subject2, Session 1 RT", 
+       auto.key = list(space="top"), xlim=(1:130), x.scales=10)
+xyplot(logRT~Trial, groups=Subject, data=NT1Plots, type="a", ylim=(5.5:8.5), 
+       main="Session 1 Response Times by Subject", 
+       auto.key = list(space='top'), xlim=(1:130), x.scales=10)
+#Time 2
+xyplot(logRT~Trial, groups=Switch, subset=Subject=="50142", data=NT2Plots, type='l', ylim = (3:10), 
+       main="Subject1, Session 2 RT", auto.key = list(space="top"), xlim=(1:130), x.scales=10)
+xyplot(logRT~Trial, groups=Switch, subset=Subject=="50192", data=NT2Plots, type='l', ylim = (3:10), 
+       main="Subject2, Session 2 RT", auto.key = list(space="top"), xlim=(1:130), x.scales=10)
+xyplot(logRT~Trial, groups=Switch, subset=Subject=="50202", data=NT2Plots, type='l', ylim = (3:10), 
+       main="Subject2, Session 2 RT", auto.key = list(space="top"), xlim=(1:130), x.scales=10)
+xyplot(logRT~Trial, groups=Switch, subset=Subject=="50262", data=NT2Plots, type='l', ylim = (3:10), 
+       main="Subject2, Session 2 RT", auto.key = list(space="top"), xlim=(1:130), x.scales=10)
+xyplot(logRT~Trial, groups=Switch, subset=Subject=="50312", data=NT2Plots, type='l', ylim = (3:10), 
+       main="Subject2, Session 2 RT", auto.key = list(space="top"), xlim=(1:130), x.scales=10)
+xyplot(logRT~Trial, groups=Subject, data=NT1Plots, type="a", ylim=(3:10), main="Session 2 Response Times by Subject", auto.key = list(space='top'), xlim=(1:130), x.scales=10)
+
+```
+
+##Response Times, only ACCURATE responses, Switch/Nonswitch
+```{r, include=FALSE}
+#Recode RT to include only Accurate responses
+FN2=F_N_T2T1_all
+str(FN2)
+is.na(FN2$logRT)=FN2$Stimuli.ACC=="0"
+sum(is.na(FN2$logRT))#53 total
+sum(is.na(FN2$Stimuli.ACC))#28
+sum(FN2$Stimuli.ACC=="0", na.rm = TRUE) #25
+
+#Switch grouped stats by sub and direction
+N2_switch_stats_bysub=FN2 %>%
+  group_by(Subject, Switch) %>%
+  summarise_at(c("Stimuli.ACC", "logRT"), funs(mean, sd), na.rm=TRUE)
+
+#Inv grouped stats by sub and direction and time
+N2_switch_stats_bysub_bysession=FN2 %>%
+  group_by(Subject, Switch, Session) %>%
+  summarise_at(c("Stimuli.ACC", "logRT"), funs(mean, sd), na.rm=TRUE)
+
+#overall time by direction by session
+N2_switch_stats_bysession=FN2 %>%
+  group_by(Switch, Session) %>%
+  summarise_at(c("Stimuli.ACC", "logRT"), funs(mean, sd), na.rm=TRUE)
+
+#put overall and by subj into a df
+N2_switch_stats=bind_rows(N2_switch_stats_bysub_bysession, 
+                          N2_switch_stats_bysession) 
+#bysub&direction was a df, bydirection was a tibble
+(N2_switch_stats$Subject=ifelse(is.na(N2_switch_stats$Subject), 
+                                "Overall", N2_switch_stats$Subject))
+```
+
+```{r, include=TRUE}
+#Switch Trials Spaghetti Plot
+xyplot(logRT_mean~Session, groups=Subject, subset=Switch=="switch", 
+       N2_switch_stats_bysub_bysession, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, 
+       main="Switch Response Time", auto.key = TRUE)
+#Non-Switch Spaghetti Plot
+xyplot(logRT_mean~Session, groups=Subject, subset=Switch=="nonswitch", 
+       N2_switch_stats_bysub_bysession, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, 
+       main="Non-switch Response Time", auto.key = TRUE)
+#By session
+xyplot(logRT_mean~Switch|Session, groups=Subject, N2_switch_stats_bysub_bysession, 
+       type=c('p','l'), par.settings=ggplot2like(),axis=axis.grid, 
+       main="Response Time by Session", auto.key = TRUE, alternate=FALSE)
+#Spaghetti plot line for each subject and Direction
+xyplot(logRT_mean~Session, groups=c(Subject, Switch), N2_switch_stats_bysub_bysession, 
+       type=c('p','l'), par.settings=ggplot2like(),axis=axis.grid, ylab="Response Time", auto.key = TRUE)
+
+#Spaghetti plot line for each subject and Direction
+xyplot(logRT_mean~Session, groups=c(Subject, Switch), N2_switch_stats_bysub_bysession, 
+       type=c('p','l'), par.settings=ggplot2like(),axis=axis.grid, ylab="Response Time", auto.key = TRUE)
+
+#with regression and mean line as panels
+mypanel=function(x,y,h){
+  panel.xyplot(x, y, lty=1, type=c('p', 'l'))
+  panel.lmline(x, y, lty=3, lwd=1, col="purple")
+  panel.grid(h=-1, v=-1)
+  panel.abline(mean(h), lty=2, col="red")
+  llines(x, y, col=c("blue", "green"))
+}
+colors=c("blue", "green")
+keylist=list(space="top", col=c("blue", "green", "red", "purple"), 
+             columns=1, text=c("Inv", "Up", "Mean", "Regression"), points=FALSE)
+bysubjectN2=factor(N2_switch_stats$Subject, levels = c(1,2,3,4,5), 
+                  labels = c("1", "2", "3", "4", "5"))
+xyplot(logRT_mean~Session|bysubjectN2, groups=Switch, data=N2_switch_stats, 
+       h=N2_switch_stats$logRT_mean, layout=c(5,1), aspect=1.5, 
+       main="Subject Response Times Switch v NonSwitch", xlab="RT (ms)", 
+       ylab="Session", panel=mypanel, auto.key=keylist)
+#still having trouble getting Up lines the correct color and not having the connecting line
+```
+
+## Global/Local Processing, Response Times Using ALL responses
+```{r, include=FALSE}
+str(F_N_T2T1_all)
+sum(is.na(F_N_T2T1_all$Stimuli.ACC)) #28 nonresponse
+sum(FN2$Stimuli.ACC=="0", na.rm = TRUE) #25 inaccurate
+sum(is.na(F_N_T2T1_all$logRT)) #only exclude the 28 nonresponse
+
+#Group stats by T location and Subject
+fn_tlocation_bysubj=F_N_T2T1_all %>%
+  group_by(TargetLocation, Subject) %>%
+  summarise_at(c("logRT", "Stimuli.ACC"), funs(mean, sd), na.rm=TRUE)
+
+#Group stats by T Location, Subject, and Time
+fn_tlocation_bysubj_bytime= F_N_T2T1_all %>%
+  group_by(TargetLocation, Session, Subject) %>%
+  summarise_at(c("logRT", "Stimuli.ACC"), funs(mean, sd), na.rm=TRUE)
+
+#Group stats by Target location and Time
+fn_tlocation_bytime= F_N_T2T1_all %>%
+  group_by(TargetLocation, Session) %>%
+  summarise_at(c("logRT", "Stimuli.ACC"), funs(mean, sd), na.rm=TRUE)
+
+#Group stats subj and overall
+fn_tlocation_stats=rbind(fn_tlocation_bysubj_bytime, fn_tlocation_bytime)
+(fn_tlocation_stats$Subject=ifelse(is.na(fn_tlocation_stats$Subject), "Overall", 
+                                   fn_tlocation_stats$Subject))
+
+#Repeated Measures Anova on Means log RT
+N_tloc_RT=ezANOVA(dv=logRT_mean, within=c(TargetLocation, Session), wid=Subject, 
+                  data=fn_tlocation_bysubj_bytime, detailed=TRUE)
+(N_tloc_RTAnova=N_tloc_RT$ANOVA) #Sig Session only 
+
+#GLMM RT 
+Ntloc_RTComp1=lmer(logRT~1+TargetLocation+Session+TargetLocation:Session+(1+Session|Subject), 
+                   data=F_N_T2T1_all)
+summary(Ntloc_RTComp1) #none sig.
+anova(Ntloc_RTComp1) #session, not interaction
+```
+
+```{r, include=TRUE}
+#Plot Target Location by Session
+(ses1=xyplot(logRT_mean~TargetLocation, data=fn_tlocation_bysubj_bytime, groups=Subject, 
+             subset=Session=="1", auto.key = list(space="right", columns=2), 
+             type=c("p","l"), ylim = c(6,7),main="Session 1 RT by Location"))
+(ses2=xyplot(logRT_mean~TargetLocation, data=fn_tlocation_bysubj_bytime, groups=Subject, 
+             subset=Session=="2", auto.key=list(space="right"), type=c("p", "l"),
+             ylim = c(6,7), pch=24, main="Session 2 RT by Location"))
+#key=list(space="right", column=2, 
+#         points=list(pch=c(21, 24), col=c("blue", "pink", "green", "red", "yellow")), 
+#         text=c(levels(fn_tlocation_bysubj_bytime$Subject), 
+#                levels(fn_tlocation_bysubj_bytime$Session)))
+plot(ses2+ses1) 
+#I want to learn to add symbols showing the triangles are session 2 and circles session 1 if desired
+(glob=xyplot(logRT_mean~Session, data=fn_tlocation_bysubj_bytime, groups=Subject, 
+             subset=TargetLocation=="G", auto.key = list(space="right"), 
+             type=c("p","l"), ylim = c(6,7),main="RT, Global"))
+(loc=xyplot(logRT_mean~Session, data=fn_tlocation_bysubj_bytime, groups=Subject, 
+            subset=TargetLocation=="L", auto.key=list(space="right"), type=c("p", "l"),
+            ylim = c(6,7), pch=24, main="RT, Local"))
+#mycols=c("pink", "blue", "yellow", "brown", "light green")
+plot(glob+loc, cols=cols, main="Global and Local Response Times by Session")# %>%
+#  legend("right", legend = 
+#         paste(c("1 Global", "2 Global","3 Global", "4 Global", "5 Global"), 
+#               c("1 Local", "2 Local", "3 Local", "4 Local", "5 Local"), sep=";"), 
+#       col=rep(cols, times=2), pch=rep(c(16, 24), each=5), bty="n", 
+#       ncol=2, cex=.7, pt.cex = .7)
+#key not functioning correctly nor is the title
+
+#plot side by side session 1 and 2 glocal and local
+xyplot(logRT_mean~Session|TargetLocation, data=fn_tlocation_bysubj_bytime, groups=Subject, auto.key =list(space="right"), type=c("p", "l"), main="Global and Local Processing by Session")
+xyplot(logRT_mean~TargetLocation|Session, data=fn_tlocation_bysubj_bytime, groups=Subject, auto.key =list(space="right"), type=c("p", "l"), main="Global and Local Processing by Session")
+
+#panels by subject with mean and regression
+mypanel=function(x,y,h){
+  panel.xyplot(x, y, lty=1, type=c('p', 'l'))
+  panel.lmline(x, y, lty=3, lwd=1, col="purple")
+  panel.grid(h=-1, v=-1)
+  panel.abline(mean(h), lty=2, col="red")
+  llines(x, y, col=c("blue", "green"))
+}
+colors=c("blue", "green")
+Tlockeylist=list(space="top", col=c("blue", "green", "red", "purple"), 
+             columns=1, text=c("Global", "Local", "Mean", "Regression"), points=FALSE)
+bysubjectTloc=factor(fn_tlocation_stats$Subject, levels = c(1,2,3,4,5), 
+                   labels = c("1", "2", "3", "4", "5"))
+xyplot(logRT_mean~Session|bysubjectTloc, groups=TargetLocation, data=fn_tlocation_stats, 
+       h=fn_tlocation_stats$logRT_mean, layout=c(5,1), aspect=1.5, 
+       main="Subject Response Times Target Location", xlab="RT (ms)", 
+       ylab="Session", panel=mypanel, auto.key=Tlockeylist)
+
+```
+
+## Global/Local only Accurate Responses
+```{r, include=FALSE}
+str(FN2)
+sum(is.na(FN2$Stimuli.ACC))#28  nonresponse
+sum(FN2$Stimuli.ACC=="0", na.rm = TRUE) #25 inaccurate
+sum(is.na(FN2$logRT))#53 total, all inaccurate AND nonresponse
+
+#Group stats by T location and Subject
+(fn2_tlocaiton_bysubj=FN2 %>%
+  group_by(Subject, TargetLocation) %>%
+  summarize_at(c("logRT", "Stimuli.ACC"), funs(mean, sd), na.rm=TRUE))
+#Group stats by T location, Subj, and Session
+(fn2_tlocaiton_bysubj_bytime=FN2 %>%
+    group_by(Subject, TargetLocation, Session) %>%
+    summarize_at(c("logRT", "Stimuli.ACC"), funs(mean, sd), na.rm=TRUE))
+#Group stats by TLocation and Session
+(fn2_tlocaiton_bytime=FN2 %>%
+    group_by(TargetLocation, Session) %>%
+    summarize_at(c("logRT", "Stimuli.ACC"), funs(mean, sd), na.rm=TRUE))
+
+#make a large DF
+fn2_stats_tlocation=rbind(fn2_tlocaiton_bysubj_bytime, fn2_tlocaiton_bytime)
+(fn2_stats_tlocation$Subject=ifelse(is.na(fn2_stats_tlocation$Subject), "Overall", fn2_stats_tlocation$Subject))
+fn2_stats_tlocation
+
+#Anova RT by Location and Session
+fn2_tloc_RT=ezANOVA(dv=logRT_mean, within=c(TargetLocation, Session), wid=Subject, 
+                    data=fn2_tlocaiton_bysubj_bytime, detailed=TRUE)
+(fn2_tloc_RTAnova=fn2_tloc_RT$ANOVA) #Sig Session only 
+
+#GLMM RT by Location, Sess, Subj
+fn2tlocGLMM=lmer(logRT~TargetLocation*Session+(Session|Subject), data=FN2)
+summary(fn2tlocGLMM)
+anova(fn2tlocGLMM) #sig at session
+```
+
+```{r, include=TRUE}
+#Plot Target Location by Session
+(ses1_2=xyplot(logRT_mean~TargetLocation, data=fn2_tlocaiton_bysubj_bytime, groups=Subject, 
+               subset=Session=="1", auto.key = list(space="right"), 
+               type=c("p","l"), ylim = c(6,7),main="Session 1 RT by Location"))
+(ses2_2=xyplot(logRT_mean~TargetLocation, data=fn_tlocation_bysubj_bytime, groups=Subject, 
+               subset=Session=="2", auto.key=list(space="right"), 
+               type=c("p", "l"), ylim = c(6,7), pch=24, main="Session 2 RT by Location"))
+#key=list(space="right", column=2, points=list(pch=c(21, 24), col=c("blue", "pink", "green", "red", "yellow")), text=c(levels(fn_tlocation_bysubj_bytime$Subject), levels(fn_tlocation_bysubj_bytime$Session)) )
+plot(ses2_2+ses1_2) 
+#I want to learn to add symbols showing the triangles are session 2 and circles session 1 if desired
+(glob_2=xyplot(logRT_mean~Session, data=fn_tlocation_bysubj_bytime, groups=Subject, 
+               subset=TargetLocation=="G", auto.key = list(space="right"), 
+               type=c("p","l"), ylim = c(6,7),main="RT, Global"))
+(loc_2=xyplot(logRT_mean~Session, data=fn_tlocation_bysubj_bytime, groups=Subject, 
+              subset=TargetLocation=="L", auto.key=list(space="right"), 
+              type=c("p", "l"),ylim = c(6,7), pch=24, main="RT, Local"))
+plot(glob_2+loc_2, main="Global and Local Response Times by Session") 
+#key not functioning correctly nor is the title
+
+#plot side by side session 1 and 2 glocal and local
+xyplot(logRT_mean~Session|TargetLocation, data=fn2_tlocaiton_bysubj_bytime, groups=Subject, 
+       auto.key =list(space="right"), type=c("p", "l"), main="Global and Local Processing by Session")
+xyplot(logRT_mean~TargetLocation|Session, data=fn2_tlocaiton_bysubj_bytime, groups=Subject, 
+       auto.key =list(space="right"), type=c("p", "l"), main="Global and Local Processing by Session")
+
+#In panels by subj with mean and regression
+mypanel=function(x,y,h){
+  panel.xyplot(x, y, lty=1, type=c('p', 'l'))
+  panel.lmline(x, y, lty=3, lwd=1, col="purple")
+  panel.grid(h=-1, v=-1)
+  panel.abline(mean(h), lty=2, col="red")
+  llines(x, y, col=c("blue", "green"))
+}
+colors=c("blue", "green")
+Tlockeylist=list(space="top", col=c("blue", "green", "red", "purple"), 
+                 columns=1, text=c("Global", "Local", "Mean", "Regression"), points=FALSE)
+bysubjectTloc=factor(fn_tlocation_stats$Subject, levels = c(1,2,3,4,5), 
+                     labels = c("1", "2", "3", "4", "5"))
+xyplot(logRT_mean~Session|bysubjectTloc, groups=TargetLocation, data=fn2_stats_tlocation, 
+       h=fn2_stats_tlocation$logRT_mean, layout=c(5,1), aspect=1.5, 
+       main="Subject Response Times Target Location", xlab="RT (ms)", 
+       ylab="Session", panel=mypanel, auto.key=Tlockeylist)
+
+```
+
+##Accuracy, Switch and NonSwitch
+```{r}
+#Switch Trials Spaghetti Plot
+xyplot(Stimuli.ACC_mean~Session, groups=Subject, subset=Switch=="switch", 
+       N_switch_stats_bysub_bysession, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, main="Switch ACC", auto.key = TRUE)
+#Non-Switch Spaghetti Plot
+xyplot(Stimuli.ACC_mean~Session, groups=Subject, subset=Switch=="nonswitch", 
+       N_switch_stats_bysub_bysession, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, main="Non-switch ACC", 
+       auto.key = TRUE)
+#By session
+xyplot(Stimuli.ACC_mean~Switch|Session, groups=Subject, N_switch_stats_bysub_bysession, 
+       type=c('p','l'), par.settings=ggplot2like(),axis=axis.grid, main="ACC by Session", 
+       auto.key = TRUE)
+#Spaghetti plot line for each subject and Direction
+xyplot(Stimuli.ACC_mean~Session, groups=c(Subject, Switch), N_switch_stats_bysub_bysession, 
+       type=c('p','l'), par.settings=ggplot2like(),axis=axis.grid, ylab="ACC", auto.key = TRUE)
+#plot Subject 1
+xyplot(Stimuli.ACC_mean~Session, groups=Switch, subset=Subject=="50142", 
+       N_switch_stats_bysub_bysession, type=c('p','l'), par.settings=ggplot2like(),
+       axis=axis.grid, main="Mean ACC Subject 1", auto.key = TRUE)
+#plot Sub 2
+xyplot(Stimuli.ACC_mean~Session, groups=Switch, subset=Subject=="50192", 
+       N_switch_stats_bysub_bysession, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, main="Mean ACC Subject 2", auto.key = TRUE)
+#plot Sub 3
+xyplot(Stimuli.ACC_mean~Session, groups=Switch, subset=Subject=="50202", 
+       N_switch_stats_bysub_bysession, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, main="Mean ACC Subject 3", auto.key = TRUE)
+#Plot Sub 4
+xyplot(Stimuli.ACC_mean~Session, groups=Switch, subset=Subject=="50262", 
+       N_switch_stats_bysub_bysession, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, main="Mean ACC Subject 4", auto.key = TRUE)
+#Plot Sub 5
+xyplot(Stimuli.ACC_mean~Session, groups=Switch, subset=Subject=="50312", 
+       N_switch_stats_bysub_bysession, type=c('p', 'l'), 
+       par.settings=ggplot2like(),axis=axis.grid, main="Mean RT Subject 5", auto.key = TRUE)
+#Plot Overall Spaghetti
+xyplot(Stimuli.ACC_mean~Session, groups=Switch, subset=Subject=="Overall", 
+       N_switch_stats, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, main="Overall ACC", auto.key = TRUE) 
+
+xyplot(Stimuli.ACC_mean~Session, groups=c(Subject, Switch), N_switch_stats, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, ylab="Overall ACC", main="Overall", 
+       auto.key = list(space="right"))
+
+#Inv_stats_bysub_bydirection_bytime$tmpSubject=as.numeric(Inv_stats_bysub_bydirection_bytime$Subject)
+#sidebyside=equal.count(Inv_stats_bysub_bydirection_bytime$tmpSubject, number=5, overlap=0)
+mypanel=function(x,y,h){
+  panel.xyplot(x, y, lty=1, type=c('p', 'l'))
+  panel.lmline(x, y, lty=3, lwd=1, col="purple")
+  panel.grid(h=-1, v=-1)
+  panel.abline(mean(h), lty=2, col="red")
+  llines(x, y, col=c("blue", "green"))
+}
+#xyplot(logRT_mean~Session|sidebyside, groups=Direction, data=Inv_stats_bysub_bydirection_bytime,  h=Inv_stats_bysub_bydirection_bytime$Stimuli.ACC_mean, layout=c(5,1), aspect=1.5, main="Subject ACC Inv v Up", xlab="ACC", ylab="Session", panel=mypanel, auto.key = list(space="top"))
+
+colors=c("blue", "green")
+keylist=list(space="top", col=c("blue", "green", "red", "purple"), columns=1, text=c("Inv", "Up", "Mean", "Regression"))
+bysubjectN=factor(N_switch_stats$Subject, levels = c(1,2,3,4,5), labels = c("1", "2", "3", "4", "5"))
+xyplot(Stimuli.ACC_mean~Session|bysubjectN, groups=Switch, data=N_switch_stats, 
+       h=N_switch_stats$Stimuli.ACC_mean, layout=c(5,1), aspect=1.5, 
+       main="Subject ACC Switch v NonSwitch", xlab="Session", ylab="ACC", panel=mypanel, 
+       auto.key=keylist)
+
+```
+
+#### Accuracy Over Time
+```{r, include=FALSE}
+#plot each person's ACC Over time
+NT1PlotsACC=F_N_T2T1_all %>%
+  subset(Session=="1")
+NT2PlotsACC=F_N_T2T1_all %>%
+  subset(Session=="2")
+str(NT1PlotsACC)
+str(NT2PlotsACC)
+sum(NT1PlotsACC$Session==1)
+sum(NT1PlotsACC$Session==2)
+sum(NT2PlotsACC$Session==1)
+sum(NT2PlotsACC$Session==2) #just double checking
+#count non-responses
+sum(is.na(NT2PlotsACC$logRT)) #13
+sum(is.na(NT1PlotsACC$logRT)) #15
+#Time 1
+#ggplot(data=F_N_T2T1_all, subset=c(Subject=="50142" & Session=="1", aes(Stimuli.ACC~Trial) +geom_line()))
+levels(NT1PlotsACC$Subject)
+```
+
+
+```{r}
+#Time 1
+xyplot(Stimuli.ACC~Trial, groups=Switch, subset=Subject=="50142", data=NT1Plots, 
+       type='l', main="Subject1, Session 1 ACC", auto.key = list(space="top"), 
+       xlim=(1:130), x.scales=10)
+xyplot(Stimuli.ACC~Trial, groups=Switch, subset=Subject=="50192", data=NT1Plots, 
+       type='l', main="Subject2, Session 1 ACC", auto.key = list(space="top"), 
+       xlim=(1:130), x.scales=10)
+xyplot(Stimuli.ACC~Trial, groups=Switch, subset=Subject=="50202", data=NT1Plots, 
+       type='l', main="Subject2, Session 1 ACC", auto.key = list(space="top"), 
+       xlim=(1:130), x.scales=10)
+xyplot(Stimuli.ACC~Trial, groups=Switch, subset=Subject=="50262", data=NT1Plots, 
+       type='l', main="Subject2, Session 1 ACC", auto.key = list(space="top"), 
+       xlim=(1:130), x.scales=10)
+xyplot(Stimuli.ACC~Trial, groups=Switch, subset=Subject=="50312", data=NT1Plots, 
+       type='l', main="Subject2, Session 1 ACC", auto.key = list(space="top"), 
+       xlim=(1:130), x.scales=10)
+xyplot(Stimuli.ACC~Trial, groups=Subject, data=NT1Plots, type="a", 
+       main="Session 1 ACC by Subject",xlim=(1:130), auto.key = list(space='top'), x.scales=10)
+
+
+#Time 2
+xyplot(Stimuli.ACC~Trial, groups=Switch, subset=Subject=="50142", data=NT2Plots, 
+       type='l', main="Subject1, Session 2 ACC", auto.key = list(space="top"), 
+       xlim=(1:130), x.scales=10)
+xyplot(Stimuli.ACC~Trial, groups=Switch, subset=Subject=="50192", data=NT2Plots, 
+       type='l', main="Subject2, Session 2 ACC", auto.key = list(space="top"), 
+       xlim=(1:130), x.scales=10)
+xyplot(Stimuli.ACC~Trial, groups=Switch, subset=Subject=="50202", data=NT2Plots, 
+       type='l', main="Subject2, Session 2 ACC", auto.key = list(space="top"), 
+       xlim=(1:130), x.scales=10)
+xyplot(Stimuli.ACC~Trial, groups=Switch, subset=Subject=="50262", data=NT2Plots, 
+       type='l', main="Subject2, Session 2 ACC", auto.key = list(space="top"), 
+       xlim=(1:130), x.scales=10)
+xyplot(Stimuli.ACC~Trial, groups=Switch, subset=Subject=="50312", data=NT2Plots, 
+       type='l', main="Subject2, Session 2 ACC", auto.key = list(space="top"), 
+       xlim=(1:130), x.scales=10)
+xyplot(Stimuli.ACC~Trial, groups=Subject, data=NT1Plots, type="a", 
+       main="Session 2 ACC by Subject", auto.key = list(space='top'), xlim=(1:130), x.scales=10)
+```
+
+## Global/Local Accuracy, All Responses 
+```{r, include=FALSE}
+str(F_N_T2T1_all)
+sum(is.na(F_N_T2T1_all$Stimuli.ACC)) #28 nonresponse
+sum(FN2$Stimuli.ACC=="0", na.rm = TRUE) #25 inaccurate
+sum(is.na(F_N_T2T1_all$logRT)) #only exclude the 28 nonresponse
+
+#Repeated Measures Anova on Means ACC
+N_tloc_ACC=ezANOVA(dv=Stimuli.ACC_mean, within=c(TargetLocation, Session), 
+                   wid=Subject, data=fn_tlocation_bysubj_bytime, detailed=TRUE)
+(N_tloc_ACCAnova=N_tloc_ACC$ANOVA) #None Sig.
+
+#GLMM RT 
+Ntloc_ACCComp1=lmer(Stimuli.ACC~1+TargetLocation+Session+TargetLocation:Session+(1+Session|Subject), 
+                    data=F_N_T2T1_all)
+summary(Ntloc_ACCComp1) #none sig.
+anova(Ntloc_ACCComp1) #none sig.
+
+```
+
+```{r, include=TRUE}
+#Plot Target Location by Session
+(ses1ACC=xyplot(Stimuli.ACC_mean~TargetLocation, data=fn_tlocation_bysubj_bytime, 
+                groups=Subject, subset=Session=="1", auto.key = list(space="right"), 
+                type=c("p","l"),main="Session 1 RT by Location"))
+(ses2ACC=xyplot(Stimuli.ACC_mean~TargetLocation, data=fn_tlocation_bysubj_bytime, 
+                groups=Subject, subset=Session=="2", auto.key=list(space="right"), 
+                type=c("p", "l"), pch=24, main="Session 2 RT by Location"))
+#key=list(space="right", column=2, points=list(pch=c(21, 24), col=c("blue", "pink", "green", "red", "yellow")), text=c(levels(fn_tlocation_bysubj_bytime$Subject), levels(fn_tlocation_bysubj_bytime$Session)) )
+plot(ses2ACC+ses1ACC) #I want to learn to add symbols showing the triangles are session 2 and circles session 1 if desired
+(globACC=xyplot(Stimuli.ACC_mean~Session, data=fn_tlocation_bysubj_bytime, 
+                groups=Subject, subset=TargetLocation=="G", auto.key = list(space="right"), 
+                type=c("p","l"),main="RT, Global"))
+(locACC=xyplot(Stimuli.ACC_mean~Session, data=fn_tlocation_bysubj_bytime, 
+               groups=Subject, subset=TargetLocation=="L", auto.key=list(space="right"), 
+               type=c("p", "l"), pch=24, main="RT, Local"))
+plot(globACC+locACC, main="Global and Local Response Times by Session") #key not functioning correctly nor is the title
+
+#plot side by side session 1 and 2 glocal and local
+xyplot(Stimuli.ACC_mean~Session|TargetLocation, data=fn_tlocation_bysubj_bytime, groups=Subject, 
+       auto.key =list(space="right"), type=c("p", "l"), main="Global and Local Processing by Session")
+xyplot(Stimuli.ACC_mean~TargetLocation|Session, data=fn_tlocation_bysubj_bytime, groups=Subject, 
+       auto.key =list(space="right"), type=c("p", "l"), main="Global and Local Processing by Session")
+
+#in panels by subj with regression and mean lines
+mypanel=function(x,y,h){
+  panel.xyplot(x, y, lty=1, type=c('p', 'l'))
+  panel.lmline(x, y, lty=3, lwd=1, col="purple")
+  panel.grid(h=-1, v=-1)
+  panel.abline(mean(h), lty=2, col="red")
+  llines(x, y, col=c("blue", "green"))
+}
+colors=c("blue", "green")
+bysubjectGlobal=factor(fn_tlocation_stats$Subject, levels = c(1,2,3,4,5), labels = c("1", "2", "3", "4", "5"))
+xyplot(Stimuli.ACC_mean~Session|bysubjectGlobal, groups=TargetLocation, data=fn_tlocation_stats, 
+       h=fn_tlocation_stats$Stimuli.ACC_mean, layout=c(5,1), aspect=1.5, 
+       main="Subject ACC Global v Local", xlab="Session", ylab="ACC", panel=mypanel, 
+       auto.key=Tlockeylist)
+
+```
+

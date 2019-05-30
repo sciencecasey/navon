@@ -67,7 +67,7 @@ EAll_bysub_bysession=EAll %>%
   summarise_at("Valence", funs(mean, sd), na.rm=TRUE)
 EAll_bysub_bysession
 
-#group stats by 
+#group stats by Session
 EALL_bysession=EAll %>%
   group_by(Session) %>%
   summarise_at("Valence", funs(mean, sd), na.rm=TRUE)
@@ -78,8 +78,9 @@ EAll_stats=bind_rows(EAll_bysub_bysession, EALL_bysession)
 EAll_stats$Subject=ifelse(is.na(EAll_stats$Subject), "Overall", EAll_stats$Subject)
 
 #t test average valence with a one tailed Cohen's D effect size
-t.test(Valence~Session, alternative = "less", data=EAll)
-cohensD(Valence~Session, data=EAll)
+#t.test(Valence~Session, alternative = "less", data=EAll, na.rm=TRUE) #this had too mult comparisons
+t.test(mean~Session, alternative="less", data=EAll_bysub_bysession, na.rm=TRUE, paired=TRUE)
+cohensD(mean~Session, data=EAll_bysub_bysession)
 
 #GLMM
 str(EAll)
@@ -89,4 +90,97 @@ summary(EV_lmer)
 
 
 #reprocess only looking at natural faces (no cross hair or scrambled)
+#make DF
+EAll=rbind(t1s1E, t2s1E, t1s2E, t2s2E, t1s3E, t2s3E, t1s4E, t2s4E, t1s5E, t2s5E)
+str(EAll)
+EAll=within(EAll, {Subject=factor(Subject)
+Session=factor(Session) 
+})
+str(EAll)
+#test how to change Video Time to a numeric
+EAllFilt=EAll
+class(EAllFilt$Video.Time)
+EAllFilt$Video.Time=as.character(EAllFilt$Video.Time)
+str(EAllFilt)
+head(EAllFilt$Video.Time)
+tail(EAllFilt$Video.Time)
+options(digits.secs=2)
+test=as.POSIXct(as.character(EAllFilt$Video.Time))
+str(test)
+class(test)
+head(test)
+tail(test)
+test1=strftime(test1, format='%M:%OS2')
+class(test1)
+tail(test1)
+test2=hms(EAllFilt$Video.Time)
+class(test2)
+str(test2)
+head(test2)
+tail(test2)
+test3=test2 %>% as.duration(dminutes(2), dseconds(4))
+class(test3)
+str(test3)
+tail(test3)
+test4=strptime(EAllFilt$Video.Time, '%M:%SO2')
+class(test4)
+str(test4)
+head(test4)
+tail(test4)
+test5=as.chron(times(EAllFilt$Video.Time, format="m:s"))
+test6=period_to_seconds(hms(EAllFilt$Video.Time)) #this works but saves as milliseconds, not seconds
+class(test6)
+head(test6)
+tail(test6) #this one is best!
 
+#bind the MS data to the DF
+str(EAll)
+EAllFilt=data.frame(cbind("Subject"= EAll$Subject, "Session"= EAll$Session, "TimeMS"=test6, "Valence"=EAll$Valence))
+str(EAllFilt)
+EAllFilt=within(EAllFilt, {
+  Subject=factor(Subject)
+  Session=factor(Session)
+})
+str(EAllFilt) #7665 rows total
+#Select only the times of interest
+#31.0-48.1 #1860-2886ms
+#77.8-95.0 #4668-5700ms
+#125.0-142.0 # 7500-8250ms
+#we only use 2.5 minutes of data
+#2.5min *60*60=9000 ms
+EAllFilt=filter(EAllFilt, TimeMS<=8250) #only 8250ms
+str(EAllFilt) #now only has 6990 rows
+EAllFilt=filter(EAllFilt, (TimeMS>=1860 & TimeMS<=2886) | (TimeMS>=4668 & TimeMS<=5700) | (TimeMS>=7500 & TimeMS<=8250))
+str(EAllFilt) #now has 2400 obs
+head(EAllFilt)
+tail(EAllFilt)
+
+#group statistics by subject and session
+EFilt_stats_bysub_bysession= EAllFilt %>%
+  group_by(Subject, Session) %>%
+  summarise_at("Valence", funs(mean, sd), na.rm=TRUE)
+EFilt_stats_bysub_bysession
+
+#group stats by Session
+EFilt_stats_bysession= EAllFilt %>%
+  group_by(Session) %>%
+  summarise_at("Valence", funs(mean,sd), na.rm=TRUE)
+EFilt_stats_bysession
+
+#add overall to df by sub
+EFilt_stats=bind_rows(EFilt_stats_bysub_bysession, EFilt_stats_bysession)
+EFilt_stats$Subject=ifelse(is.na(EFilt_stats$Subject), "Overall", EFilt_stats$Subject)
+EFilt_stats
+
+#t test average valence with a one tailed Cohen's D effect size
+EFilt_stats_bysub_bysessionWIDE=dcast(EFilt_stats_bysub_bysession, Subject~Session, value.var = "mean")
+EFilt_stats_bysub_bysessionWIDE$Sess1=EFilt_stats_bysub_bysessionWIDE$`1`
+EFilt_stats_bysub_bysessionWIDE$Sess2=EFilt_stats_bysub_bysessionWIDE$`2`
+t.test(EFilt_stats_bysub_bysessionWIDE$Sess1, EFilt_stats_bysub_bysessionWIDE$Sess2, paired=TRUE, alternative="less")
+cohensD(EFilt_stats_bysub_bysessionWIDE$Sess1, EFilt_stats_bysub_bysessionWIDE$Sess2)
+#check above
+EFilt_stats_bysub_bysessionWIDE$Difference=(EFilt_stats_bysub_bysessionWIDE$Sess2)-(EFilt_stats_bysub_bysessionWIDE$Sess1) 
+t.test(EFilt_stats_bysub_bysessionWIDE$Difference, alternative = "less")
+#GLMM
+(EFilt_glmm=lmer(Valence~Session+(1+Session|Subject), data=EAllFilt))
+summary(EFilt_glmm)

@@ -80,7 +80,8 @@ ra=xyplot(logRT_mean~Session, groups=Subject, subset=Direction=="Inv", Inv_stats
        par.settings=ggplot2like(),axis=axis.grid, ylab="Inverted Response Time", auto.key = TRUE, pch=24)
 re
 ra
-plot(ra+re, yaxp=c(6.4,7.4, 10))
+ra+re
+#plot(ra+re, yaxp=c(6.4,7.4, 10)) #not working
 #Spaghetti plot line for each subject and Direction in panels
 xyplot(logRT_mean~Session|Direction, groups=Subject, Inv_stats_bysub_bydirection_bytime, type=c('p','l'), par.settings=ggplot2like(),axis=axis.grid, ylab="Response Time", auto.key = list(space="right"), layout=c(2,1), main="Response Time by Subject")
 #try Spaghetti plot line each sub in same panel
@@ -97,42 +98,47 @@ try.fill=c("orange", "skyblue", "lightgreen", "purple", "red")
                              text=list(levels(Subject)), points=list(pch=16, col=try.fill),
                              rep=FALSE), axis=axis.grid, ylab="Response Time", main="Response Time by Subject")))
 #plot Subject 1
-xyplot(logRT_mean~Session, groups=Direction, subset=Subject=="1", Inv_stats_bysub_bydirection_bytime, type=c('p','l'), par.settings=ggplot2like(),axis=axis.grid, ylab="Mean RT Subject 1")
+xyplot(logRT_mean~Session, groups=Direction, subset=Subject=="1", Inv_stats, type=c('p','l'), par.settings=ggplot2like(),axis=axis.grid, ylab="Mean RT Subject 1", auto.key = TRUE)
 #plot Sub 2
-xyplot(logRT_mean~Session, groups=Direction, subset=Subject=="2", Inv_stats_bysub_bydirection_bytime, type=c('p','l'),
-       par.settings=ggplot2like(),axis=axis.grid, ylab="Mean RT Subject 2")
+xyplot(logRT_mean~Session, groups=Direction, subset=Subject=="2", Inv_stats, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, ylab="Mean RT Subject 2", auto.key = TRUE)
 #plot Sub 3
-xyplot(logRT_mean~Session, groups=Direction, subset=Subject=="3", Inv_stats_bysub_bydirection_bytime, type=c('p','l'),
-       par.settings=ggplot2like(),axis=axis.grid, ylab="Mean RT Subject 3")
+xyplot(logRT_mean~Session, groups=Direction, subset=Subject=="3", Inv_stats, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, ylab="Mean RT Subject 3", auto.key = TRUE)
 #Plot Sub 4
-xyplot(logRT_mean~Session, groups=Direction, subset=Subject=="4", Inv_stats_bysub_bydirection_bytime, type=c('p','l'),
-       par.settings=ggplot2like(),axis=axis.grid, ylab="Mean RT Subject 4")
+xyplot(logRT_mean~Session, groups=Direction, subset=Subject=="4", Inv_stats, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, ylab="Mean RT Subject 4", auto.key = TRUE)
 #Plot Sub 5
-xyplot(logRT_mean~Session, groups=Direction, subset=Subject=="5", Inv_stats_bysub_bydirection_bytime, type=c('p', 'l'), par.settings=ggplot2like(),axis=axis.grid, ylab="Mean RT Subject 5")
+xyplot(logRT_mean~Session, groups=Direction, subset=Subject=="5", Inv_stats, type=c('p', 'l'), par.settings=ggplot2like(),axis=axis.grid, ylab="Mean RT Subject 5", auto.key = TRUE)
 #Plot Overall Spaghetti
 xyplot(logRT_mean~Session, groups=Direction, subset=Subject=="Overall", Inv_stats, type=c('p','l'),
-       par.settings=ggplot2like(),axis=axis.grid, ylab="Overall RT") 
+       par.settings=ggplot2like(),axis=axis.grid, ylab="Overall RT", auto.key = TRUE) 
 
+#Can't the colors correct below, doesn't look nice
 xyplot(logRT_mean~Session, groups=c(Direction), Inv_stats, type=c('p','l'),
-                       par.settings=ggplot2like(),axis=axis.grid, ylab="Overall RT", main="Subject 5 & Overall", auto.key = list(space="right", title="Key", cex.title=1.5))
+       par.settings=ggplot2like(),axis=axis.grid, ylab="Response Time", main="All Subjects & Overall", auto.key = list(space="right", title="Key", cex.title=1.5))
+
 
 #Inv_stats_bysub_bydirection_bytime$tmpSubject=as.numeric(Inv_stats_bysub_bydirection_bytime$Subject)
 #sidebyside=equal.count(Inv_stats_bysub_bydirection_bytime$tmpSubject, number=5, overlap=0)
 mypanel=function(x,y,h, k){
-  panel.xyplot(x, y, lty=1, type=c('p', 'l'))
-  panel.lmline(x, y, lty=3, lwd=1, col="purple")
-  panel.grid(h=-1, v=-1)
-  panel.abline(mean(h), lty=2, col="red")
-  llines(x, y, col=c("blue", "green"))
+     panel.xyplot(x, y, lty=1, type=c('p', 'l'))
+     panel.lmline(x, y, lty=3, lwd=1, col="purple")
+     panel.grid(h=-1, v=-1)
+     panel.abline(mean(h), lty=2, col="red")
+     llines(x, y, col=c("blue", "green"))
 }
 #xyplot(logRT_mean~Session|sidebyside, groups=Direction, data=Inv_stats_bysub_bydirection_bytime,  h=Inv_stats_bysub_bydirection_bytime$logRT_mean, layout=c(5,1), aspect=1.5, main="Subject Response Times Inv v Up", xlab="RT (ms)", ylab="Session", panel=mypanel, auto.key = list(space="top"))
-
 colors=c("blue", "green")
-keylist=list(space="top", col=c("blue", "green", "red", "purple"), columns=1, text=c("Inv", "Up", "Mean", "Regression"))
-bysubject=factor(Inv_stats_bysub_bydirection_bytime$Subject, levels = c(1,2,3,4,5), labels = c("1", "2", "3", "4", "5"))
-xyplot(logRT_mean~Session|bysubject, groups=Direction, data=Inv_stats_bysub_bydirection_bytime, h=Inv_stats_bysub_bydirection_bytime$logRT_mean, layout=c(5,1), aspect=1.5, main="Subject Response Times Inv v Up", xlab="RT (ms)", ylab="Session", panel=mypanel, auto.key=keylist)
+keylist=list(space="top", col=c("blue", "green", "red", "purple"), 
+             columns=1, text=c("Inv", "Up", "Mean", "Regression"))
+bysubject=factor(Inv_stats$Subject, levels = c(1,2,3,4,5), 
+                 labels = c("1", "2", "3", "4", "5"))
+xyplot(logRT_mean~Session|bysubject, groups=Direction, data=Inv_stats, 
+                h=Inv_stats$logRT_mean, layout=c(5,1), aspect=1.5, 
+                main="Subject Response Times Inv v Up", xlab="RT (ms)", 
+                ylab="Session", panel=mypanel, auto.key=keylist)
 
-         
 #Repeated Measures Anova on Means log RT
 InvRT=ezANOVA(dv=logRT_mean, within=c(Direction, Session), wid=Subject, data=Inv_stats_bysub_bydirection_bytime, detailed=TRUE)
 (InvRTAnova=InvRT$ANOVA)
@@ -156,7 +162,7 @@ anova(Inv_RTComp1)
 
 #plot each person's RT Over time
 T1Plots=Invtime1_time2_LONG %>%
-  subset(Invtime1_time2_LONG, Session=="1")
+  subset(Session=="1")
 T2Plots=Invtime1_time2_LONG %>%
   subset(Session=="2")
 str(T1Plots)
@@ -165,15 +171,6 @@ sum(T1Plots$Session==1)
 sum(T1Plots$Session==2)
 sum(T2Plots$Session==1)
 sum(T2Plots$Session==2) #just double checking
-
-#recode trials to be over time
-length(T1Plots$Trial)
-T1Plots$Trial=seq(1,280)
-T1Plots$Trial
-T2Plots$Trial=seq(1,280)
-T2Plots$Trial
-sum(is.na(T2Plots$logRT)) #11
-sum(is.na(T1Plots$logRT)) #9
 
 #Time 1
 ggplot(data=Invtime1_time2_LONG, subset=c(Subject=="50142" & Session=="1", aes(logRT~Trial) +geom_line()))
@@ -184,7 +181,7 @@ xyplot(logRT~Trial, groups=Direction, subset=Subject=="50202", data=T1Plots, typ
 xyplot(logRT~Trial, groups=Direction, subset=Subject=="50262", data=T1Plots, type='l', ylim = (3:10), main="Subject2, Session 1 RT", auto.key = list(space="top"))
 xyplot(logRT~Trial, groups=Direction, subset=Subject=="50312", data=T1Plots, type='l', ylim = (3:10), main="Subject2, Session 1 RT", auto.key = list(space="top"))
 xyplot(logRT~Trial, groups=Subject, data=T1Plots, type="a", ylim=(3:10), main="Session 1 Response Times by Subject", auto.key = list(space='top'))
-#i don't understand why the lines don't overlap
+
 
 #Time 2
 xyplot(logRT~Trial, groups=Direction, subset=Subject=="50142", data=T2Plots, type='l', ylim = (3:10), main="Subject1, Session 2 RT", auto.key = list(space="top"))

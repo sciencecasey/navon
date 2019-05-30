@@ -67,7 +67,7 @@ xyplot(Stimuli.ACC_mean~Session|bysubjectN, groups=Switch, data=N_switch_stats,
        auto.key=keylist)
 
 
-#Repeated Measures Anova on Means log RT
+#Repeated Measures Anova on Mean ACC
 N_switch_ACC=ezANOVA(dv=Stimuli.ACC_mean, within=c(Switch, Session), wid=Subject, 
                      data=N_switch_stats_bysub_bysession, detailed=TRUE)
 (N_switch_ACCAnova=N_switch_ACC$ANOVA) #switch and Session Sig. (and intercept)
@@ -80,7 +80,7 @@ summary(Nswitch_ACComp1)
 #no sig
 anova(Nswitch_ACComp1) #no sig
 
-#plot each person's RT Over time
+#plot each person's ACC Over time
 NT1PlotsACC=F_N_T2T1_all %>%
   subset(Session=="1")
 NT2PlotsACC=F_N_T2T1_all %>%

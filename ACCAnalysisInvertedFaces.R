@@ -10,19 +10,20 @@ xyplot(Comparison.ACC_mean~Session, groups=Subject, subset=Direction=="Inv", Inv
        par.settings=ggplot2like(),axis=axis.grid, ylab="Inverted Accuracy")
 #Spaghetti plot line for each subject and Direction
 xyplot(Comparison.ACC_mean~Session, groups=c(Subject, Direction), Inv_stats_bysub_bydirection_bytime, type=c('p','l'), par.settings=ggplot2like(),axis=axis.grid, ylab="Accuracy")
+
 #plot Subject 1
-xyplot(Comparison.ACC_mean~Session, groups=Direction, subset=Subject=="1", Inv_stats_bysub_bydirection_bytime, type=c('p','l'), par.settings=ggplot2like(),axis=axis.grid, ylab="Mean ACC Subject 1")
+xyplot(Comparison.ACC_mean~Session, groups=Direction, subset=Subject=="1", Inv_stats, type=c('p','l'), par.settings=ggplot2like(),axis=axis.grid, ylab="Mean ACC Subject 1")
 #plot Sub 2
-xyplot(Comparison.ACC_mean~Session, groups=Direction, subset=Subject=="2", Inv_stats_bysub_bydirection_bytime, type=c('p','l'),
+xyplot(Comparison.ACC_mean~Session, groups=Direction, subset=Subject=="2", Inv_stats, type=c('p','l'),
        par.settings=ggplot2like(),axis=axis.grid, ylab="Mean ACC Subject 2")
 #plot Sub 3
-xyplot(Comparison.ACC_mean~Session, groups=Direction, subset=Subject=="3", Inv_stats_bysub_bydirection_bytime, type=c('p','l'),
+xyplot(Comparison.ACC_mean~Session, groups=Direction, subset=Subject=="3", Inv_stats, type=c('p','l'),
        par.settings=ggplot2like(),axis=axis.grid, ylab="Mean ACC Subject 3")
 #Plot Sub 4
-xyplot(Comparison.ACC_mean~Session, groups=Direction, subset=Subject=="4", Inv_stats_bysub_bydirection_bytime, type=c('p','l'),
+xyplot(Comparison.ACC_mean~Session, groups=Direction, subset=Subject=="4", Inv_stats, type=c('p','l'),
        par.settings=ggplot2like(),axis=axis.grid, ylab="Mean ACC Subject 4")
 #Plot Sub 5
-xyplot(Comparison.ACC_mean~Session, groups=Direction, subset=Subject=="5", Inv_stats_bysub_bydirection_bytime, type=c('p', 'l'), par.settings=ggplot2like(),axis=axis.grid, ylab="Mean RT Subject 5")
+xyplot(Comparison.ACC_mean~Session, groups=Direction, subset=Subject=="5", Inv_stats, type=c('p', 'l'), par.settings=ggplot2like(),axis=axis.grid, ylab="Mean RT Subject 5")
 #Plot Overall Spaghetti
 xyplot(Comparison.ACC_mean~Session, groups=Direction, subset=Subject=="Overall", Inv_stats, type=c('p','l'),
        par.settings=ggplot2like(),axis=axis.grid, ylab="Overall ACC") 
@@ -43,8 +44,12 @@ mypanel=function(x,y,h, k){
 
 colors=c("blue", "green")
 keylist=list(space="top", col=c("blue", "green", "red", "purple"), columns=1, text=c("Inv", "Up", "Mean", "Regression"))
-bysubject=factor(Inv_stats_bysub_bydirection_bytime$Subject, levels = c(1,2,3,4,5), labels = c("1", "2", "3", "4", "5"))
-xyplot(Comparison.ACC_mean~Session|bysubject, groups=Direction, data=Inv_stats_bysub_bydirection_bytime, h=Inv_stats_bysub_bydirection_bytime$Comparison.ACC_mean, layout=c(5,1), aspect=1.5, main="Subject Response Times Inv v Up", xlab="RT (ms)", ylab="Session", panel=mypanel, auto.key=keylist)
+bysubject=factor(Inv_stats$Subject, levels = c(1,2,3,4,5), labels = c("1", "2", "3", "4", "5"))
+xyplot(Comparison.ACC_mean~Session|bysubject, groups=Direction, data=Inv_stats, 
+       h=Inv_stats$Comparison.ACC_mean, layout=c(5,1), aspect=1.5, 
+       main="Subject Accuracy Inv v Up", xlab="Session", 
+       ylab="Proportion Accurate Responses", panel=mypanel, auto.key=keylist)
+
 
 #Repeated Measures Anova on Means ACC
 InvACC=ezANOVA(dv=Comparison.ACC_mean, within=c(Direction, Session), wid=Subject, data=Inv_stats_bysub_bydirection_bytime, detailed=TRUE)

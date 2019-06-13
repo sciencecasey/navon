@@ -9,13 +9,15 @@ t2s4E=read.csv("50132_emovalence_2.csv")
 t1s5E=read.csv("50142_emovalence_1.csv")
 t2s5E=read.csv("50142_emovalence_2.csv")
 
+
 #add participant and trial
 length(t1s1E$Video.Time)
 t1s1E$Subject=rep(50262, times=745)
 t1s1E$Session=rep(1, times=745)
 str(t1s1E)
-t1s1E$Valence=as.numeric(t1s1E$Valence)
+t1s1E$Valence=as.numeric(as.character(t1s1E$Valence))
 str(t1s1E)
+sum(is.na(t1s1E$Valence)) #only 3
 length(t2s1E$Video.Time)
 t2s1E$Subject=rep(50262, times=795)
 t2s1E$Session=rep(2, times=795)
@@ -24,7 +26,8 @@ length(t1s2E$Video.Time)
 t1s2E$Subject=rep(50202, 836)
 t1s2E$Session=rep(1, 836)
 str(t1s2E)
-t1s2E$Valence=as.numeric(t1s2E$Valence)
+t1s2E$Valence=as.numeric(as.character((t1s2E$Valence)))
+sum(is.na(t1s2E$Valence)) #only 2
 str(t1s2E)
 length(t2s2E$Video.Time)
 t2s2E$Subject=rep(50202, 780)
@@ -57,6 +60,7 @@ str(t2s5E)
 
 #combine particpant DFs
 EAll=bind_rows(t1s1E, t2s1E, t1s2E, t2s2E, t1s3E, t2s3E, t1s4E, t2s4E, t1s5E, t2s5E)
+warnings()
 str(EAll)
 EAll=within(EAll, {Subject=factor(Subject)
    Session=factor(Session)
@@ -83,6 +87,10 @@ EAll_stats$Subject=ifelse(is.na(EAll_stats$Subject), "Overall", EAll_stats$Subje
 #t.test(Valence~Session, alternative = "less", data=EAll, na.rm=TRUE) #this had too mult comparisons
 t.test(mean~Session, alternative="less", data=EAll_bysub_bysession, na.rm=TRUE, paired=TRUE)
 cohensD(mean~Session, data=EAll_bysub_bysession)
+
+#plot for viewing
+xyplot(mean~Session, EAll_bysub_bysession, groups = Subject, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, auto.key = TRUE, main="Average Valence by Subject", ylab="Average Valence") 
 
 #GLMM
 str(EAll)
@@ -120,7 +128,7 @@ class(test2)
 str(test2)
 head(test2)
 tail(test2)
-test3=test2 %>% as.duration(dminutes(2), dseconds(4))
+test3=as.duration(test2, dminutes=test2[2],dseconds=test2[4])
 class(test3)
 str(test3)
 tail(test3)
@@ -174,6 +182,11 @@ EFilt_stats=bind_rows(EFilt_stats_bysub_bysession, EFilt_stats_bysession)
 EFilt_stats$Subject=ifelse(is.na(EFilt_stats$Subject), "Overall", EFilt_stats$Subject)
 EFilt_stats
 
+#plot for viewing
+xyplot(mean~Session, EFilt_stats_bysub_bysession, groups = Subject, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, auto.key = TRUE, main="Average Valence by Subject", ylab="Average Valence") 
+
+
 #t test average valence with a one tailed Cohen's D effect size
 EFilt_stats_bysub_bysessionWIDE=dcast(EFilt_stats_bysub_bysession, Subject~Session, value.var = "mean")
 EFilt_stats_bysub_bysessionWIDE$Sess1=EFilt_stats_bysub_bysessionWIDE$`1`
@@ -186,3 +199,4 @@ t.test(EFilt_stats_bysub_bysessionWIDE$Difference, alternative = "less")
 #GLMM
 (EFilt_glmm=lmer(Valence~Session+(1+Session|Subject), data=EAllFilt))
 summary(EFilt_glmm)
+

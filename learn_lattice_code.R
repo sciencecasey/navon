@@ -40,7 +40,7 @@ with(Cars93,
                        rep = FALSE)))
                   
      
-#color version, nit shown in book
+#color version, not shown in book
 my.pch2 <- c(21:25, 20)
 my.fill2 <- c("orange", "skyblue", "lightgreen")
      
@@ -76,3 +76,145 @@ levelplot(t(scale(USArrests))[, ord.hc2],
                                             list(col = "transparent",
                                                  fill = region.colors[state.region])),
                                type = "rectangle"))))
+
+
+
+#Using Iris: 
+#from https://stackoverflow.com/questions/14185600/superposed-xyplot-panels-with-grouped-regression-lines 
+xyplot(
+  Petal.Width  ~ Petal.Length | Species,
+  data = iris,
+  panel = function(x, y, ...) {
+    panel.xyplot(x, y, ...)
+    panel.abline(lm(y~x), col='#0080ff')
+  },
+  grid = TRUE
+)
+
+xyplot(
+  Petal.Width ~ Petal.Length,
+  data = iris,
+  groups = Species,
+  panel = function(x, y, ...) {
+    panel.xyplot(x, y, ...)
+    panel.abline(lm(y~x))
+  },
+  grid = TRUE,
+  auto.key = list(title='Species', space='right')
+)
+
+#to overlay
+#option 1
+xyplot(Petal.Width  ~ Petal.Length, groups = Species, data = iris, 
+       type = c('p','r','g'),  
+       auto.key = list(title='Species', space='right'))
+
+#option 2
+xyplot(Petal.Width  ~ Petal.Length,
+  groups = Species,
+  data = iris,
+  panel = function(x, y, ...) {
+    panel.superpose(x, y, ...,
+                    panel.groups = function(x,y, col, col.symbol, ...) {
+                      panel.xyplot(x, y, col=col.symbol, ...)
+                      panel.abline(lm(y~x), col.line=col.symbol)
+                    }
+    )
+  },
+  grid = TRUE,
+  auto.key = list(title='Species', space='right')
+)
+
+#option 3
+xyplot(
+  Petal.Width  ~ Petal.Length,
+  groups = Species,
+  data = iris,
+  panel = panel.superpose, # must for use of panel.groups
+  panel.groups=function(x, y, col, col.symbol, ...) {
+    panel.xyplot(x, y, col=col.symbol, ...)
+    panel.lmline(x, y, col.line=col.symbol)
+  },
+  grid = TRUE,
+  auto.key = list(title='Species', space='right')
+)
+
+#using Duncan Data
+#from https://quantoid.net/files/rbe/lattice.pdf 
+trellis.par.set(superpose.line=list(col=c("blue", "black", "red")), 
+                superpose.symbol = list(col=c("blue", "black", "red"), 
+                                        pch=1:3))
+xyplot(prestige ~ income, data=Duncan, groups=Duncan$type,
+       auto.key=list(text=c("Blue Collar", "Professional", "White Collar")),
+       panel = function(...){
+         panel.superpose(..., panel.groups="panel.xyplot")
+         panel.superpose(..., panel.groups="panel.lmline")
+         })
+
+
+#From https://stackoverflow.com/questions/23804752/adding-several-loess-lines-to-each-panel-in-lattice-plot
+#sample data
+
+(data<-expand.grid(Months=1:13, Site=paste("Site", 1:3), Spe=labels))
+(data$Total<-sort(runif(nrow(data), 100,10000))+rnorm(nrow(data),50, 20))
+
+my.col1<- c("white", "darkgray", "black", "lightgray",  "ivory2")
+my.col2<- c("white", "darkgray", "black", "lightgray",  "ivory2")
+mlabels<- c("Jan-12", "Feb-12", "Mar-12", "Apr-12", "May-12", "Jun-12", 
+            "Jul-12", "Aug-12", "Sep-12", "Oct-12", "Nov-12", "Dec-12", "Jan-13")
+labels<- c("H", "A", "E", "Q", "T")
+
+xyplot(Total~Months|Site,data=data, groups=Spe,  
+       layout=c(3,1), index.cond=list(c(1,2,3)),
+       par.settings = list(
+         superpose.polygon = list(col=c(my.col1, my.col2))), 
+       superpose.line=list(col=c(my.col1, my.col2)),
+       ylab="Individuals", xlab="Months",
+       scales=list(x=list(rot=90, alternating=1,labels=mlabels)),
+       auto.key=list(space="top", columns=3, cex=.8,between.columns = 1,font=3,
+                     rectangles=FALSE, points=TRUE, labels=labels),
+       panel = panel.superpose,
+       panel.groups = function(x,y,...) {
+         panel.xyplot(x, y, ...)
+         panel.loess(x, y, ...)
+       }
+)
+
+
+#modeling my issue for Stack Exchange:
+
+library(vegan)
+library(dplyr)
+data("ANT")
+str(ANT)
+ANT$block=factor(ANT$block)
+#20 subs
+#6 blocks
+#2 directions
+#RT
+
+#add column for logtime
+ANT$rtLOG=log(ANT$rt)
+str(ANT)
+
+#Inv grouped stats by sub and direction and time
+ANT_stats_bysub_bydirection_bytime= ANT %>%
+  group_by(subnum, direction, block) %>%
+  summarise_at(("rtLOG"), funs(mean, sd), na.rm=TRUE)
+
+str(ANT_stats_bysub_bydirection_bytime)
+
+mypanel=function(x,y,h, k){
+  panel.xyplot(x, y, lty=1, type=c('p', 'l'))
+  panel.lmline(x, y, lty=3, lwd=1, col="purple")
+  panel.grid(h=-1, v=-1)
+  panel.abline(mean(h), lty=2, col="red")
+  llines(x, y, col=c("blue", "green")) 
+}
+
+colors=c("blue", "green")
+keylist=list(space="top", col=c("blue", "green", "red", "purple"), columns=1, text=c("Left", "Right", "Mean", "Regression"))
+xyplot(mean~block|subnum, groups=direction, data=ANT_stats_bysub_bydirection_bytime, 
+       h=ANT_stats$mean, layout=c(5,4), aspect=1.5, 
+       main="Subject Response Time, by Direction and Session", xlab="Session", 
+       ylab="Mean Response Time", panel=mypanel, auto.key=keylist)

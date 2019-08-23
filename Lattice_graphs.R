@@ -97,7 +97,8 @@ xyplot(logRT_mean~Session|bysubjectN, groups=Switch, data=N_switch_stats,
 
 #Navon RT
 xyplot(logRT_mean~Session|bysubject, 
-       groups=Direction, data=Inv_stats_bysub_bydirection_bytime, 
+       groups=Direction, 
+       data=Inv_stats_bysub_bydirection_bytime, 
        type=c('p','l'), 
        h=N_switch_stats$logRT_mean,
        layout=c(5,1), aspect=1.5,
@@ -105,21 +106,54 @@ xyplot(logRT_mean~Session|bysubject,
        axis=axis.grid, 
        ylab="Response Time", 
        auto.key = list(space="right"),
-       main="Response Time by Subject")
+       main="Response Time by Subject",
+       scales=list(alternating=FALSE))
 
+#trying to add regression line and mean line to above
 xyplot(logRT_mean~Session|bysubject, 
-       groups=Direction, data=Inv_stats_bysub_bydirection_bytime, 
-       type=c('p','l'), 
+       groups=Direction, 
+       data=Inv_stats_bysub_bydirection_bytime, 
+       type='l', #this isn't working
        h=N_switch_stats$logRT_mean,
-       layout=c(5,1), aspect=1.5,
+       #layout=c(5,1), aspect=1.5,
        par.settings=ggplot2like(),
        axis=axis.grid, 
        ylab="Response Time", 
-       panel = "panel.superpose",
-       panel.groups = "panel.linejoin",
-       auto.key = list(space="right"),
-       main="Response Time by Subject")
+       #auto.key = list(space="right"),
+       main="Response Time by Subject",
+       scales=list(alternating=FALSE),
+       auto.key=list(space="right", ),
+       panel=function(x,y,h,...){
+         panel.superpose(x,y,..., col = c("purple","blue", "green"))
+         panel.lmline(x,y,..., col="green")
+         #panel.ablineq(mean(h),..., lty=1, col.line="red")
+       })
+       panel = function(x, y, h, subscripts, groups) {
+         panel.lmline(x, y, lty=3, lwd=1, col="purple")
+         panel.abline(mean(h), lty=1, col="red")
+         panel.superpose(x,y,subscripts=groups[subscripts], groups, lty=1, col=c("blue", "pink"))
+         #llines(x, y, subscripts, groups, lty=1, col=c("blue", "pink"))
+       })
 
+xyplot(logRT_mean~Session|Subject, 
+       data=Inv_stats_bysub_bydirection_bytime, 
+       groups=Direction, 
+       h=Inv_stats_bysub_bydirection_bytime$logRT_mean,
+       auto.key =list(space="bottom"), #ltext(labels=c("Inverse", "Up", "Regression", "Average"))), 
+       main="Response Times by Subject", 
+       ylab = "Average RT",
+       axis=axis.grid,
+       layout=c(5,1),
+       scales=list(alternating=FALSE),
+       panel = function(x, y, h, subscripts, groups) {
+         panel.superpose(x,y,subscripts=groups[subscripts], 
+                         groups=groups[subscripts], lty=c(1,5), col.points =c("blue", "pink"))
+         panel.lmline(x, y, lty=3, lwd=1, col="purple")
+         panel.abline(mean(h), lty=2, col="red")
+         #llines(x, y, subscripts, groups, col=c("blue", "pink"))
+         #ltext(x = x, y = y,labels = groups, cex=1,
+               #fontfamily = "HersheySans", type=c("p", "l"))
+       })
 
 xyplot(logRT_mean~Session|bysubject, 
        groups=Direction, data=Inv_stats_bysub_bydirection_bytime, 
@@ -131,11 +165,11 @@ xyplot(logRT_mean~Session|bysubject,
        ylab="Response Time", 
        auto.key = list(space="right"),
        panel = function(x, y, h, subscripts, groups) {
+         panel.abline(mean(h), lty=2, col="red") #not working
+         panel.superpose(x,y,subscripts=groups[subscripts], groups)
          ltext(x = x, y = y, h=mean, labels = groups[subscripts], cex=1,
                fontfamily = "HersheySans")
          panel.lmline(x, y, lty=3, lwd=1, col="purple")
-         panel.abline(mean(h), lty=2, col="red")
-         panel.superpose(x,y,subscripts=groups[subscripts], groups)
        },
        main="Response Time by Subject")
 
@@ -165,7 +199,9 @@ xyplot(Stimuli.ACC_mean~Session|TargetLocation,
        h=fn_tlocation_bysubj_bytime$Stimuli.ACC_mean,
        auto.key =list(space="right"), 
        type=c("p", "l"), 
-       main="Global and Local Processing by Session", 
+       main="Global v. Local Processing Accuracy", 
+       ylab = "Average Accuracy",
+       scales=list(alternating=FALSE),
        panel = function(x, y, h, subscripts, groups) {
          panel.lmline(x, y, lty=3, lwd=1, col="purple")
          panel.abline(mean(h), lty=2, col="red")
@@ -175,17 +211,35 @@ xyplot(Stimuli.ACC_mean~Session|TargetLocation,
                fontfamily = "HersheySans")
        })
 
+#without text
+xyplot(Stimuli.ACC_mean~Session|TargetLocation, 
+       data=fn_tlocation_bysubj_bytime, 
+       groups=bysubjectGlobal, 
+       h=fn_tlocation_bysubj_bytime$Stimuli.ACC_mean,
+       auto.key =list(space="right"), 
+       type=c("p", "l"),
+       main="Global v. Local Processing Accuracy", 
+       ylab = "Average Accuracy",
+       scales=list(alternating=FALSE),
+       panel = function(x, y, h, subscripts, groups) {
+         panel.lmline(x, y, lty=3, lwd=1, col="purple")
+         panel.abline(mean(h), lty=1, col="red")
+         panel.superpose(x,y,subscripts=groups[subscripts], groups, lty=1, col=c("blue", "pink", "green", "red", "yellow"))
+         #llines(x, y, subscripts, groups, lty=1, col=c("blue", "pink", "green", "red", "yellow"))
+       })
+
+
 #Plot Target Location by Session
 (ses1=xyplot(logRT_mean~TargetLocation, data=fn_tlocation_bysubj_bytime, groups=Subject, 
-             subset=Session=="1", auto.key = list(space="right", columns=2), 
-             type=c("p","l"), ylim = c(6,7),main="Session 1 RT by Location"))
+             subset=Session=="1",
+             type=c("p","l"), ylim = c(6,7), main="RT by Location"))
 (ses2=xyplot(logRT_mean~TargetLocation, data=fn_tlocation_bysubj_bytime, groups=Subject, 
              subset=Session=="2", auto.key=list(space="right"), type=c("p", "l"),
-             ylim = c(6,7), pch=24, main="Session 2 RT by Location"))
-#key=list(space="right", column=2, 
-#         points=list(pch=c(21, 24), col=c("blue", "pink", "green", "red", "yellow")), 
-#         text=c(levels(fn_tlocation_bysubj_bytime$Subject), 
-#                levels(fn_tlocation_bysubj_bytime$Session)))
+             ylim = c(6,7), pch=24, main="RT by Location"))
+key=list(space="right", column=2, 
+         points=list(pch=c(21, 24), col=c("blue", "pink", "green", "red", "yellow")), 
+         text=c(levels(fn_tlocation_bysubj_bytime$Subject), 
+                levels(fn_tlocation_bysubj_bytime$Session)))
 plot(ses2+ses1) 
 #I want to learn to add symbols showing the triangles are session 2 and circles session 1 if desired
 (glob=xyplot(logRT_mean~Session, data=fn_tlocation_bysubj_bytime, groups=Subject, 

@@ -1,0 +1,413 @@
+---
+title: "Lattice_Graphs"
+author: "Casey Jayne"
+date: "7/2/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require("ggplot2")
+require(GGally)
+require(reshape2)
+require(lme4)
+#require(compiler)
+#require(parallel)
+#require(boot)
+require(lattice)
+require(dplyr)
+require(tidyverse)
+require("haven")
+require(lsr)
+require(plyr)
+require(car)
+require(fitdistrplus)
+require(multcomp)
+require(emmeans)
+library(lmerTest)
+library(latticeExtra)  
+library(ez)
+library(markdown)
+library(knitr)
+require(lubridate)
+library(reshape2)
+```
+
+## These are updated graphical outputs from Inverted Faces/Navon RO1 
+```{r include=FALSE}
+#Pull together all the data TIME ONE ONLY
+#after importing subjects, create long df/tibble with all the subjects
+Invtime1all=rbind(t1s1, t1s2, t1s3, t1s4, t1s5)
+Invtime1all
+#add time 2
+Invtime1_time2_all=rbind(Invtime1all, t2s1, t2s2, t2s3, t2s4, t2s5)
+#some of the data is saved as Inv some and Inverse, change all to Inv
+Invtime1_time2_all$Direction[Invtime1_time2_all$Direction=="Inverse"]="Inv"
+#some subjects saved without 2 at the end for time 2
+Invtime1_time2_all$Subject[Invtime1_time2_all$Subject=="5031"]="50312"
+Invtime1_time2_all$Subject[Invtime1_time2_all$Subject=="5020"]="50202"
+#subset only the LONG trials
+Invtime1all[["Time"]] #checking the data only
+Invtime1_time2_LONG=subset(Invtime1_time2_all, Time=="l")
+#set Subject as Factor to double check
+Invtime1_time2_LONG$Subject=factor(Invtime1_time2_LONG$Subject)
+levels(Invtime1_time2_LONG$Subject) #check 5 subjects
+#explore the amount of incorrect 
+sum(Invtime1_time2_LONG$Comparison.ACC=="0")
+#75 total inaccurate
+sum(is.na(Invtime1_time2_LONG$Comparison.RESP))
+#20 non-response
+sum(Invtime1_time2_LONG$Comparison.RT=="0")
+#20 listed as RT=0, these were non-response
+#Recode RT saved as 0 for nonresponse to NA 
+is.na(Invtime1_time2_LONG$Comparison.RT)=is.na(Invtime1_time2_LONG$Comparison.RESP)
+sum(Invtime1_time2_LONG$Comparison.RT==0) 
+sum(is.na(Invtime1_time2_LONG$Comparison.RT))#check function recoded 
+#remove ACC values for the NA RT as these shouldn't be coded
+sum(is.na(Invtime1_time2_LONG$Comparison.ACC)) #no n/as for ACC
+is.na(Invtime1_time2_LONG$Comparison.ACC)=is.na(Invtime1_time2_LONG$Comparison.RESP)
+sum(is.na(Invtime1_time2_LONG$Comparison.ACC))
+sum(is.na(Invtime1_time2_LONG$Comparison.RESP)) #check that these are the same
+sum(Invtime1_time2_LONG$Comparison.ACC==0, na.rm=TRUE) # new total incorrect responses (should be lower, not counting non-response)
+sum(!is.na(Invtime1_time2_LONG$Comparison.RT)) #540 responses
+sum(!Invtime1_time2_LONG$Comparison.ACC==0, na.rm=TRUE) #485 accurate trials
+#540-480=60 inaccurate responses
+
+#RT all responses 
+#add column for logtime
+Invtime1_time2_LONG$logRT=log(Invtime1_time2_LONG$Comparison.RT)
+str(Invtime1_time2_LONG)
+sum(is.na(Invtime1_time2_LONG$logRT)) #checking the calculation used NAs from RESP and RT
+
+#Inv grouped stats by sub and direction
+Inv_stats_bysub_bydirection=Invtime1_time2_LONG %>%
+  group_by(Subject, Direction) %>%
+  summarise_at(c("Comparison.ACC", "logRT"), funs(mean, sd), na.rm=TRUE)
+
+#Inv grouped stats by sub and direction and time
+Inv_stats_bysub_bydirection_bytime=Invtime1_time2_LONG %>%
+  group_by(Subject, Direction, Session) %>%
+  summarise_at(c("Comparison.ACC", "logRT"), funs(mean, sd), na.rm=TRUE)
+
+#overall time by direction by session
+Inv_stats_bydirection_bytime=Invtime1_time2_LONG %>%
+  group_by(Direction, Session) %>%
+  summarise_at(c("logRT", "Comparison.ACC"), funs(mean, sd), na.rm=TRUE)
+
+#put overall and by subj into a df
+Inv_stats=bind_rows(Inv_stats_bysub_bydirection_bytime, Inv_stats_bydirection_bytime) #bysub&direction was a df, bydirection was a tibble
+(Inv_stats$Subject=ifelse(is.na(Inv_stats$Subject), "Overall", Inv_stats$Subject))
+
+str(Inv_stats_bysub_bydirection_bytime)
+Inv_stats_bysub_bydirection_bytime=within(Inv_stats_bysub_bydirection_bytime, {
+  Direction=factor(Direction)
+  Session=factor(Session)
+  Subject=factor(Subject)
+})
+str(Inv_stats_bysub_bydirection_bytime)
+```
+
+## 2 panel options
+
+###Navon
+####Global/Local
+```{r, include=TRUE, echo=FALSE}
+##Local/Global
+#Accuracy
+xyplot(Stimuli.ACC_mean~Session|TargetLocation, data=fn_tlocation_bysubj_bytime, groups=Subject, 
+       auto.key =list(space="right"), type=c("p", "l"), main="Global and Local Processing Accuracy", ylab = "Average Accuracy", xlab= "Session", scales = list(alternating=FALSE))
+
+xyplot(Stimuli.ACC_mean~TargetLocation|Session, data=fn_tlocation_bysubj_bytime, groups=Subject, 
+       auto.key =list(space="right"), type=c("p", "l"), main="Global and Local Processing Accuracy", ylab = "Average Accuracy", xlab= "Target Letter Location", scales = list(alternating=FALSE))
+
+xyplot(Stimuli.ACC_mean~Session|TargetLocation, 
+       data=fn_tlocation_bysubj_bytime, 
+       groups=bysubjectGlobal, 
+       h=fn_tlocation_bysubj_bytime$Stimuli.ACC_mean,
+       auto.key =list(space="right"), 
+       type=c("p", "l"), 
+       main="Global v. Local Processing Accuracy", 
+       ylab = "Average Accuracy",
+       scales=list(alternating=FALSE),
+       panel = function(x, y, h, subscripts, groups) {
+         panel.lmline(x, y, lty=3, lwd=1, col="purple")
+         panel.abline(mean(h), lty=1, col="red")
+         panel.superpose(x,y,subscripts=groups[subscripts], groups, lty=1, col=c("blue", "pink", "green", "red", "yellow"))
+         #llines(x, y, subscripts, groups, col=c("blue", "pink", "green", "red", "yellow"))
+         ltext(x = x, y = y,labels = groups, cex=1,
+               fontfamily = "HersheySans")
+       })
+
+xyplot(Stimuli.ACC_mean~Session|TargetLocation, 
+       data=fn_tlocation_bysubj_bytime, 
+       groups=bysubjectGlobal, 
+       h=fn_tlocation_bysubj_bytime$Stimuli.ACC_mean,
+       auto.key =list(space="right"), 
+       type=c("p", "l"),
+       main="Global v. Local Processing Accuracy", 
+       ylab = "Average Accuracy",
+       scales=list(alternating=FALSE),
+       panel = function(x, y, h, subscripts, groups) {
+         panel.lmline(x, y, lty=3, lwd=1, col="purple")
+         panel.abline(mean(h), lty=1, col="red")
+         panel.superpose(x,y,subscripts=groups[subscripts], groups, lty=1, col=c("blue", "pink", "green", "red", "yellow"))
+         #llines(x, y, subscripts, groups, lty=1, col=c("blue", "pink", "green", "red", "yellow"))
+       })
+
+#Response Time, All Answers
+
+xyplot(logRT_mean~Session|TargetLocation, data=fn_tlocation_bysubj_bytime, groups=Subject, auto.key =list(space="right"), type=c("p", "l"), main="Global and Local Processing by Session")
+xyplot(logRT_mean~TargetLocation|Session, data=fn_tlocation_bysubj_bytime, groups=Subject, auto.key =list(space="right"), type=c("p", "l"), main="Global and Local Processing by Session")
+
+mypanel=function(x,y,h){
+  panel.xyplot(x, y, lty=1, type=c('p', 'l'))
+  panel.lmline(x, y, lty=3, lwd=1, col="purple")
+  panel.grid(h=-1, v=-1)
+  panel.abline(mean(h), lty=2, col="red")
+  llines(x, y, col=c("blue", "green"))
+}
+colors=c("blue", "green")
+Tlockeylist=list(space="top", col=c("blue", "green", "red", "purple"), 
+             columns=1, text=c("Global", "Local", "Mean", "Regression"), points=FALSE)
+bysubjectTloc=factor(fn_tlocation_stats$Subject, levels = c(1,2,3,4,5), 
+                   labels = c("1", "2", "3", "4", "5"))
+xyplot(logRT_mean~Session|bysubjectTloc, groups=TargetLocation, data=fn_tlocation_stats, 
+       h=fn_tlocation_stats$logRT_mean, layout=c(5,1), aspect=1.5, 
+       main="Subject Response Times Target Location", xlab="RT (ms)", 
+       ylab="Session", panel=mypanel, auto.key=Tlockeylist)
+
+
+#Response Time, Accurate only
+(ses1_2=xyplot(logRT_mean~TargetLocation, data=fn2_tlocaiton_bysubj_bytime, groups=Subject, 
+               subset=Session=="1", auto.key = list(space="right"), 
+               type=c("p","l"), ylim = c(6,7),main="Session 1 RT by Location"))
+(ses2_2=xyplot(logRT_mean~TargetLocation, data=fn_tlocation_bysubj_bytime, groups=Subject, 
+               subset=Session=="2", auto.key=list(space="right"), 
+               type=c("p", "l"), ylim = c(6,7), pch=24, main="Session 2 RT by Location"))
+#key=list(space="right", column=2, points=list(pch=c(21, 24), col=c("blue", "pink", "green", "red", "yellow")), text=c(levels(fn_tlocation_bysubj_bytime$Subject), levels(fn_tlocation_bysubj_bytime$Session)) )
+plot(ses2_2+ses1_2) 
+#I want to learn to add symbols showing the triangles are session 2 and circles session 1 if desired
+(glob_2=xyplot(logRT_mean~Session, data=fn_tlocation_bysubj_bytime, groups=Subject, 
+               subset=TargetLocation=="G", auto.key = list(space="right"), 
+               type=c("p","l"), ylim = c(6,7),main="RT, Global"))
+(loc_2=xyplot(logRT_mean~Session, data=fn_tlocation_bysubj_bytime, groups=Subject, 
+              subset=TargetLocation=="L", auto.key=list(space="right"), 
+              type=c("p", "l"),ylim = c(6,7), pch=24, main="RT, Local"))
+plot(glob_2+loc_2, main="Global and Local Response Times by Session") 
+
+mypanel=function(x,y,h){
+  panel.xyplot(x, y, lty=1, type=c('p', 'l'))
+  panel.lmline(x, y, lty=3, lwd=1, col="purple")
+  panel.grid(h=-1, v=-1)
+  panel.abline(mean(h), lty=2, col="red")
+  llines(x, y, col=c("blue", "green"))
+}
+colors=c("blue", "green")
+Tlockeylist=list(space="top", col=c("blue", "green", "red", "purple"), 
+                 columns=1, text=c("Global", "Local", "Mean", "Regression"), points=FALSE)
+bysubjectTloc=factor(fn_tlocation_stats$Subject, levels = c(1,2,3,4,5), 
+                     labels = c("1", "2", "3", "4", "5"))
+xyplot(logRT_mean~Session|bysubjectTloc, groups=TargetLocation, data=fn2_stats_tlocation, 
+       h=fn2_stats_tlocation$logRT_mean, layout=c(5,1), aspect=1.5, 
+       main="Subject Response Times Target Location", xlab="RT (ms)", 
+       ylab="Session", panel=mypanel, auto.key=Tlockeylist)
+
+```
+
+####Switch/Nonswitch
+
+
+
+```{r include=TRUE, echo=FALSE}
+##Switch/Nonswitch
+#Accuracy
+
+#By session
+#Plot Target Location by Session
+ses1ACC=xyplot(Stimuli.ACC_mean~TargetLocation, data=fn_tlocation_bysubj_bytime, 
+                groups=Subject, subset=Session=="1", auto.key = list(space="right"), 
+                type=c("p","l"),main="Session 1 ACC by Location")
+ses2ACC=xyplot(Stimuli.ACC_mean~TargetLocation, data=fn_tlocation_bysubj_bytime, 
+                groups=Subject, subset=Session=="2", auto.key=list(space="right"), 
+                type=c("p", "l"), pch=24, main="Session 2 ACC by Location")
+#key=list(space="right", column=2, points=list(pch=c(21, 24), col=c("blue", "pink", "green", "red", "yellow")), text=c(levels(fn_tlocation_bysubj_bytime$Subject), levels(fn_tlocation_bysubj_bytime$Session)) )
+plot(ses2ACC+ses1ACC) #I want to learn to add symbols showing the triangles are session 2 and circles session 1 if desired
+globACC=xyplot(Stimuli.ACC_mean~Session, data=fn_tlocation_bysubj_bytime, 
+                groups=Subject, subset=TargetLocation=="G", auto.key = list(space="right"), 
+                type=c("p","l"),main="ACC, Global")
+locACC=xyplot(Stimuli.ACC_mean~Session, data=fn_tlocation_bysubj_bytime, 
+               groups=Subject, subset=TargetLocation=="L", auto.key=list(space="right"), 
+               type=c("p", "l"), pch=24, main="ACC, Local")
+plot(globACC+locACC, main="Global and Local Response Times by Session") #key not functioning correctly nor is the title
+
+#plot side by side session 1 and 2 glocal and local
+xyplot(Stimuli.ACC_mean~Session|TargetLocation, data=fn_tlocation_bysubj_bytime, groups=Subject, 
+       auto.key =list(space="right"), type=c("p", "l"), main="Global and Local Processing by Session")
+xyplot(Stimuli.ACC_mean~TargetLocation|Session, data=fn_tlocation_bysubj_bytime, groups=Subject, 
+       auto.key =list(space="right"), type=c("p", "l"), main="Global and Local Processing by Session")
+
+#Inv_stats_bysub_bydirection_bytime$tmpSubject=as.numeric(Inv_stats_bysub_bydirection_bytime$Subject)
+#sidebyside=equal.count(Inv_stats_bysub_bydirection_bytime$tmpSubject, number=5, overlap=0)
+mypanel=function(x,y,h){
+  panel.xyplot(x, y, lty=1, type=c('p', 'l'))
+  panel.lmline(x, y, lty=3, lwd=1, col="purple")
+  panel.grid(h=-1, v=-1)
+  panel.abline(mean(h), lty=2, col="red")
+  llines(x, y, col=c("blue", "green"))
+}
+#xyplot(logRT_mean~Session|sidebyside, groups=Direction, data=Inv_stats_bysub_bydirection_bytime,  h=Inv_stats_bysub_bydirection_bytime$Stimuli.ACC_mean, layout=c(5,1), aspect=1.5, main="Subject ACC Inv v Up", xlab="ACC", ylab="Session", panel=mypanel, auto.key = list(space="top"))
+
+colors=c("blue", "green")
+keylist=list(space="top", col=c("blue", "green", "red", "purple"), columns=1, text=c("Inv", "Up", "Mean", "Regression"))
+bysubjectN=factor(N_switch_stats$Subject, levels = c(1,2,3,4,5), labels = c("1", "2", "3", "4", "5"))
+xyplot(Stimuli.ACC_mean~Session|bysubjectN, groups=Switch, data=N_switch_stats, 
+       h=N_switch_stats$Stimuli.ACC_mean, layout=c(5,1), aspect=1.5, 
+       main="Subject ACC Switch v NonSwitch", xlab="Session", ylab="ACC", panel=mypanel, 
+       auto.key=keylist)
+
+#Response Time, All Answers
+mypanel=function(x,y,h){
+  panel.xyplot(x, y, lty=1, type=c('p', 'l'))
+  panel.lmline(x, y, lty=3, lwd=1, col="purple")
+  panel.grid(h=-1, v=-1)
+  panel.abline(mean(h), lty=2, col="red")
+  llines(x, y, col=c("blue", "green"))
+}
+colors=c("blue", "green")
+keylist=list(space="top", col=c("blue", "green", "red", "purple"), 
+             columns=1, text=c("Inv", "Up", "Mean", "Regression"))
+bysubjectN=factor(N_switch_stats$Subject, levels = c(1,2,3,4,5), 
+                  labels = c("1", "2", "3", "4", "5"))
+xyplot(logRT_mean~Session|bysubjectN, groups=Switch, data=N_switch_stats, 
+       h=N_switch_stats$logRT_mean, layout=c(5,1), aspect=1.5, 
+       main="Subject Response Times Switch v NonSwitch", xlab="RT (ms)", 
+       ylab="Session", panel=mypanel, auto.key=keylist)
+
+#By session
+xyplot(logRT_mean~Switch|Session, groups=Subject, 
+       N_switch_stats_bysub_bysession, type=c('p','l'),
+       par.settings=ggplot2like(),axis=axis.grid, 
+       main="Response Time by Session", auto.key = TRUE)
+
+#Response Time, Accurate only
+
+
+#By session
+xyplot(logRT_mean~Switch|Session, groups=Subject, N2_switch_stats_bysub_bysession, 
+       type=c('p','l'), par.settings=ggplot2like(),axis=axis.grid, 
+       main="Response Time by Session", auto.key = TRUE, alternate=FALSE)
+
+#with regression and mean line as panels
+mypanel=function(x,y,h){
+  panel.xyplot(x, y, lty=1, type=c('p', 'l'))
+  panel.lmline(x, y, lty=3, lwd=1, col="purple")
+  panel.grid(h=-1, v=-1)
+  panel.abline(mean(h), lty=2, col="red")
+  llines(x, y, col=c("blue", "green"))
+}
+colors=c("blue", "green")
+keylist=list(space="top", col=c("blue", "green", "red", "purple"), 
+             columns=1, text=c("Inv", "Up", "Mean", "Regression"), points=FALSE)
+bysubjectN2=factor(N2_switch_stats$Subject, levels = c(1,2,3,4,5), 
+                  labels = c("1", "2", "3", "4", "5"))
+xyplot(logRT_mean~Session|bysubjectN2, groups=Switch, data=N2_switch_stats, 
+       h=N2_switch_stats$logRT_mean, layout=c(5,1), aspect=1.5, 
+       main="Subject Response Times Switch v NonSwitch", xlab="RT (ms)", 
+       ylab="Session", panel=mypanel, auto.key=keylist)
+
+```
+
+
+###Inverted Faces
+```{r include=TRUE, echo=FALSE}
+#Accuracy
+
+
+#Response Time, All Answers
+xyplot(logRT_mean~Session|bysubject, 
+       groups=Direction, 
+       data=Inv_stats_bysub_bydirection_bytime, 
+       type=c('p','l'), 
+       h=N_switch_stats$logRT_mean,
+       layout=c(5,1), aspect=1.5,
+       #abline(mean(N_switch_stats$logRT_mean), lty=3, lwd=1, col="purple")
+       panel=function(x, y, subscripts, groups) {
+          panel.abline(mean(N_switch_stats$logRT_mean), lty=3, lwd=1, col="purple")
+          panel.lmline(x,y)
+          #panel.average(x,y,..., lty=3, lwd=1)
+          panel.superpose(x,y,subscripts=groups[subscripts], groups, lty=1)
+       },
+       #panel.lmline(),
+       #panel.average(),
+       par.settings=ggplot2like(),
+       axis=axis.grid, 
+       ylab="Response Time", 
+       auto.key = list(space="right"),
+       main="Response Time by Subject",
+       scales=list(alternating=FALSE))
+
+xyplot(Stimuli.ACC_mean~Session|TargetLocation, 
+       
+       auto.key =list(space="right"), 
+       type=c("p", "l"), 
+       main="Global v. Local Processing Accuracy", 
+       ylab = "Average Accuracy",
+       scales=list(alternating=FALSE),
+       panel = function(x, y, h, subscripts, groups) {
+         panel.lmline(x, y, lty=3, lwd=1, col="purple")
+         panel.abline(mean(h), lty=1, col="red")
+         panel.superpose(x,y,subscripts=groups[subscripts], groups, lty=1, col=c("blue", "pink", "green", "red", "yellow"))
+         #llines(x, y, subscripts, groups, col=c("blue", "pink", "green", "red", "yellow"))
+         ltext(x = x, y = y,labels = groups, cex=1,
+               fontfamily = "HersheySans")
+       })
+
+
+#Response Time, Accurate only
+```
+
+
+## 5 Panel option (Separate by Subject)
+###Navon
+####Global/Local
+```{r, include=TRUE, echo=FALSE}
+##Local/Global
+#Accuracy
+
+
+
+#Response Time, All Answers
+
+
+
+#Response Time, Accurate only
+
+
+
+```
+
+####Switch/Nonswitch
+```{r include=TRUE, echo=FALSE}
+##Switch/Nonswitch
+#Accuracy
+
+
+#Response Time, All Answers
+
+
+#Response Time, Accurate only
+
+
+```
+
+
+###Inverted Faces
+```{r include=TRUE, echo=FALSE}
+#Accuracy
+
+
+#Response Time, All Answers
+
+
+#Response Time, Accurate only
+```

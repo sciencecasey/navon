@@ -680,18 +680,18 @@ anova(Ntloc_ACCComp1) #none sig.
 #Plot Target Location by Session
 (ses1ACC=xyplot(Stimuli.ACC_mean~TargetLocation, data=fn_tlocation_bysubj_bytime, 
                 groups=Subject, subset=Session=="1", auto.key = list(space="right"), 
-                type=c("p","l"),main="Session 1 RT by Location"))
+                type=c("p","l"),main="Session 1 ACC by Location"))
 (ses2ACC=xyplot(Stimuli.ACC_mean~TargetLocation, data=fn_tlocation_bysubj_bytime, 
                 groups=Subject, subset=Session=="2", auto.key=list(space="right"), 
-                type=c("p", "l"), pch=24, main="Session 2 RT by Location"))
+                type=c("p", "l"), pch=24, main="Session 2 ACC by Location"))
 #key=list(space="right", column=2, points=list(pch=c(21, 24), col=c("blue", "pink", "green", "red", "yellow")), text=c(levels(fn_tlocation_bysubj_bytime$Subject), levels(fn_tlocation_bysubj_bytime$Session)) )
 plot(ses2ACC+ses1ACC) #I want to learn to add symbols showing the triangles are session 2 and circles session 1 if desired
 (globACC=xyplot(Stimuli.ACC_mean~Session, data=fn_tlocation_bysubj_bytime, 
                 groups=Subject, subset=TargetLocation=="G", auto.key = list(space="right"), 
-                type=c("p","l"),main="RT, Global"))
+                type=c("p","l"),main="ACC, Global"))
 (locACC=xyplot(Stimuli.ACC_mean~Session, data=fn_tlocation_bysubj_bytime, 
                groups=Subject, subset=TargetLocation=="L", auto.key=list(space="right"), 
-               type=c("p", "l"), pch=24, main="RT, Local"))
+               type=c("p", "l"), pch=24, main="ACC, Local"))
 plot(globACC+locACC, main="Global and Local Response Times by Session") #key not functioning correctly nor is the title
 
 #plot side by side session 1 and 2 glocal and local

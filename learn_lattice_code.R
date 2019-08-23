@@ -218,3 +218,55 @@ xyplot(mean~block|subnum, groups=direction, data=ANT_stats_bysub_bydirection_byt
        h=ANT_stats$mean, layout=c(5,4), aspect=1.5, 
        main="Subject Response Time, by Direction and Session", xlab="Session", 
        ylab="Mean Response Time", panel=mypanel, auto.key=keylist)
+
+
+##from https://learnr.wordpress.com/2009/07/20/ggplot2-version-of-figures-in-lattice-multivariate-data-visualization-with-r-part-6/
+quakes$Magnitude <- equal.count(quakes$mag, 4)
+pl=cloud(depth~lat*long | Magnitude, data=quakes,
+         zlim=rev(range(quakes$depth)), screen=list(z=105, x=-70), panel.aspect = 0.75,
+         xlab="longitude", ylab="Latitude", zlab="Depth")
+print(pl)
+
+
+
+##trying my own
+xyplot(Stimuli.ACC_mean~Session|bysubjectGlobal, 
+       data=fn_tlocation_bysubj_bytime, 
+       groups=TargetLocation, 
+       h=fn_tlocation_bysubj_bytime$Stimuli.ACC_mean,
+       auto.key =list(space="right", col=c("blue", "pink")), 
+       type=c("p", "l"), 
+       main="Global v. Local Processing Accuracy", 
+       ylab = "Average Accuracy",
+       scales=list(alternating=FALSE),
+       panel = function(x, y, h, subscripts, groups) {
+         panel.lmline(x, y, lty=3, lwd=1, col="purple")
+         panel.abline(mean(h), lty=1, col="red")
+         #panel.superpose(x,y,subscripts=groups[subscripts], groups, lty=1, col=c("blue", "pink", "green", "red", "yellow"))
+         llines(x=x, y=y, type='p', pch=c(23, 23, 21, 21), col=c("blue", "blue", "pink", "pink"),
+                fill=c("blue", "blue", "pink", "pink"))
+         #ltext(x = x, y = y,labels = c("G", "L", "G", "L"), cex=1,
+               #fontfamily = "HersheySans", col=c("blue", "pink", "blue", "pink"))
+       },
+       layout=c(5,1), aspect=5,
+       axis=axis.grid
+       )
+xyplot(logRT_mean~Session|bysubject, 
+       data=Inv_stats_bysub_bydirection_bytime, 
+       groups=Direction, 
+       h=Inv_stats_bysub_bydirection_bytime$logRT_mean,
+       auto.key =list(space="right", col=c("blue", "pink")), 
+       main="Response Time by Subject", 
+       ylab = "Response Time",
+       scales=list(alternating=FALSE),
+       panel = function(x, y, h, subscripts, groups) {
+         panel.lmline(x, y, lty=3, lwd=1, col="purple")
+         panel.abline(mean(h), lty=1, col="red")
+         llines(x=x, y=y, type='p', pch=c(23, 23, 21, 21), col=c("blue", "blue", "pink", "pink"),
+                fill=c("blue", "blue", "pink", "pink"))
+         #ltext(x = x, y = y,labels = c("G", "L", "G", "L"), cex=1,
+         #fontfamily = "HersheySans", col=c("blue", "pink", "blue", "pink"))
+       },
+       layout=c(5,1), aspect=5,
+       axis=axis.grid
+)
